@@ -294,12 +294,11 @@ word_complete_list_extend_from_raw(Application_Links *app, Arena *arena, String_
          node != 0;
          node = node->next){
         String_Const_u8 s = push_buffer_range(app, scratch, node->buffer, node->range);
-        Data data = make_data(s.str, s.size);
-        Table_Lookup lookup = table_lookup(used_table, data);
+        Table_Lookup lookup = table_lookup(used_table, s);
         if (!lookup.found_match){
-            data = push_data_copy(arena, data);
+            String_Const_u8 data = push_data_copy(arena, s);
             table_insert(used_table, data, 1);
-            string_list_push(arena, list, SCu8(data.data, data.size));
+            string_list_push(arena, list, data);
         }
     }
 }

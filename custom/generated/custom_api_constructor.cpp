@@ -575,7 +575,7 @@ api_param(arena, call, "Application_Links*", "app");
 api_param(arena, call, "View_ID", "view_id");
 }
 {
-API_Call *call = api_call_with_location(arena, result, string_u8_litexpr("view_current_context_hook_memory"), string_u8_litexpr("Data"), string_u8_litexpr(""));
+API_Call *call = api_call_with_location(arena, result, string_u8_litexpr("view_current_context_hook_memory"), string_u8_litexpr("String_Const_u8"), string_u8_litexpr(""));
 api_param(arena, call, "Application_Links*", "app");
 api_param(arena, call, "View_ID", "view_id");
 api_param(arena, call, "Hook_ID", "hook_id");

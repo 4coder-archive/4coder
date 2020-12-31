@@ -2011,9 +2011,9 @@ file_exists_and_is_folder(Application_Links *app, String_Const_u8 file_name){
     return(attributes.last_write_time > 0 && HasFlag(attributes.flags, FileAttribute_IsDirectory));
 }
 
-function Data
+function String_Const_u8
 dump_file_handle(Arena *arena, FILE *file){
-    Data result = {};
+    String_Const_u8 result = {};
     if (file != 0){
         fseek(file, 0, SEEK_END);
         u64 size = ftell(file);

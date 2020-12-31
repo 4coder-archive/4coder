@@ -295,7 +295,7 @@ file_get_line_layout(Thread_Context *tctx, Models *models, Editing_File *file,
         key.width = width;
         key.line_number = line_number;
         
-        Data key_data = make_data_struct(&key);
+        String_Const_u8 key_data = make_data_struct(&key);
         
         Layout_Item_List *list = 0;
         

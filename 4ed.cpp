@@ -275,10 +275,10 @@ App_Init_Sig(app_init){
     
     // NOTE(allen): init baked in buffers
     File_Init init_files[] = {
-        { string_u8_litinit("*messages*"), &models->message_buffer , true , },
-        { string_u8_litinit("*scratch*") , &models->scratch_buffer , false, },
-        { string_u8_litinit("*log*")     , &models->log_buffer     , true , },
-        { string_u8_litinit("*keyboard*"), &models->keyboard_buffer, true , },
+        { str8_lit("*messages*"), &models->message_buffer , true , },
+        { str8_lit("*scratch*") , &models->scratch_buffer , false, },
+        { str8_lit("*log*")     , &models->log_buffer     , true , },
+        { str8_lit("*keyboard*"), &models->keyboard_buffer, true , },
     };
     
     Buffer_Hook_Function *begin_buffer_func = models->begin_buffer;

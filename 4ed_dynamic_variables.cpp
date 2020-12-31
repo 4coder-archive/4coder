@@ -13,53 +13,53 @@ internal void
 managed_ids_init(Base_Allocator *allocator, Managed_ID_Set *set){
     set->arena = make_arena(allocator, KB(4), 8);
     set->name_to_group_table = make_table_Data_u64(allocator, 20);
-    }
+}
 
 internal Managed_ID
 managed_ids_group_highest_id(Managed_ID_Set *set, String_Const_u8 group_name){
     Managed_ID result = 0;
-    Data data = make_data(group_name.str, group_name.size);
-        Table_Lookup lookup = table_lookup(&set->name_to_group_table, data);
-        if (lookup.found_match){
-            u64 val = 0;
-            table_read(&set->name_to_group_table, lookup, &val);
+    String_Const_u8 data = make_data(group_name.str, group_name.size);
+    Table_Lookup lookup = table_lookup(&set->name_to_group_table, data);
+    if (lookup.found_match){
+        u64 val = 0;
+        table_read(&set->name_to_group_table, lookup, &val);
         Managed_ID_Group *group = (Managed_ID_Group*)IntAsPtr(val);
         result = group->id_counter - 1;
-        }
+    }
     return(result);
 }
 
 internal Managed_ID
 managed_ids_declare(Managed_ID_Set *set, String_Const_u8 group_name, String_Const_u8 name){
     Managed_ID_Group *group = 0;
-{
-        Data data = make_data(group_name.str, group_name.size);
-    Table_Lookup lookup = table_lookup(&set->name_to_group_table, data);
-    if (lookup.found_match){
-        u64 val = 0;
+    {
+        String_Const_u8 data = make_data(group_name.str, group_name.size);
+        Table_Lookup lookup = table_lookup(&set->name_to_group_table, data);
+        if (lookup.found_match){
+            u64 val = 0;
             table_read(&set->name_to_group_table, lookup, &val);
-        group = (Managed_ID_Group*)IntAsPtr(val);
-    }
-    else{
+            group = (Managed_ID_Group*)IntAsPtr(val);
+        }
+        else{
             group = push_array(&set->arena, Managed_ID_Group, 1);
             group->id_counter = 1;
             group->name_to_id_table = make_table_Data_u64(set->arena.base_allocator, 50);
-        data = push_data_copy(&set->arena, data);
-        table_insert(&set->name_to_group_table, data, PtrAsInt(group));
-    }
+            data = push_data_copy(&set->arena, data);
+            table_insert(&set->name_to_group_table, data, PtrAsInt(group));
+        }
     }
     Managed_ID result = 0;
     {
-        Data data = make_data(name.str, name.size);
+        String_Const_u8 data = make_data(name.str, name.size);
         Table_Lookup lookup = table_lookup(&group->name_to_id_table, data);
         if (lookup.found_match){
             table_read(&group->name_to_id_table, lookup, &result);
         }
         else{
-        result = group->id_counter;
+            result = group->id_counter;
             group->id_counter += 1;
-        data = push_data_copy(&set->arena, data);
-        table_insert(&group->name_to_id_table, data, result);
+            data = push_data_copy(&set->arena, data);
+            table_insert(&group->name_to_id_table, data, result);
         }
     }
     return(result);
@@ -69,7 +69,7 @@ function Managed_ID
 managed_ids_get(Managed_ID_Set *set, String_Const_u8 group_name, String_Const_u8 name){
     Managed_ID_Group *group = 0;
     {
-        Data data = make_data(group_name.str, group_name.size);
+        String_Const_u8 data = make_data(group_name.str, group_name.size);
         Table_Lookup lookup = table_lookup(&set->name_to_group_table, data);
         if (lookup.found_match){
             u64 val = 0;
@@ -79,7 +79,7 @@ managed_ids_get(Managed_ID_Set *set, String_Const_u8 group_name, String_Const_u8
     }
     Managed_ID result = 0;
     if (group != 0){
-        Data data = make_data(name.str, name.size);
+        String_Const_u8 data = make_data(name.str, name.size);
         Table_Lookup lookup = table_lookup(&group->name_to_id_table, data);
         if (lookup.found_match){
             table_read(&group->name_to_id_table, lookup, &result);
@@ -96,9 +96,9 @@ dynamic_variable_block_init(Base_Allocator *allocator, Dynamic_Variable_Block *b
     block->id_to_data_table = make_table_u64_Data(allocator, 20);
 }
 
-internal Data
+internal String_Const_u8
 dynamic_variable_get(Dynamic_Variable_Block *block, Managed_ID id, u64 size){
-    Data result = {};
+    String_Const_u8 result = {};
     Table_Lookup lookup = table_lookup(&block->id_to_data_table, id);
     if (lookup.found_match){
         table_read(&block->id_to_data_table, lookup, &result);
@@ -194,12 +194,12 @@ dynamic_workspace_get_pointer(Dynamic_Workspace *workspace, u32 id){
 
 ////////////////////////////////
 
-internal Data
+internal String_Const_u8
 lifetime__key_as_data(Lifetime_Object **members, i32 count){
     return(make_data(members, sizeof(*members)*count));
 }
 
-internal Data
+internal String_Const_u8
 lifetime__key_as_data(Lifetime_Key *key){
     return(lifetime__key_as_data(key->members, key->count));
 }
@@ -249,7 +249,7 @@ lifetime__free_key(Lifetime_Allocator *lifetime_allocator, Lifetime_Key *key, Li
     }
     
     // Free
-    Data key_data = lifetime__key_as_data(key);
+    String_Const_u8 key_data = lifetime__key_as_data(key);
     table_erase(&lifetime_allocator->key_table, key_data);
     table_erase(&lifetime_allocator->key_check_table, (u64)PtrAsInt(key));
     base_free(lifetime_allocator->allocator, key->members);
@@ -398,7 +398,7 @@ lifetime_sort_and_dedup_object_set(Lifetime_Object **ptr_array, i32 count){
 internal Lifetime_Key*
 lifetime_get_or_create_intersection_key(Lifetime_Allocator *lifetime_allocator, Lifetime_Object **object_ptr_array, i32 count){
     {
-        Data key_data = lifetime__key_as_data(object_ptr_array, count);
+        String_Const_u8 key_data = lifetime__key_as_data(object_ptr_array, count);
         Table_Lookup lookup = table_lookup(&lifetime_allocator->key_table, key_data);
         if (lookup.found_match){
             u64 val = 0;
@@ -426,8 +426,8 @@ lifetime_get_or_create_intersection_key(Lifetime_Allocator *lifetime_allocator, 
     
     // Initialize
     u64 new_memory_size = sizeof(Lifetime_Object*)*count;
-    Data new_memory = base_allocate(lifetime_allocator->allocator, new_memory_size);
-    new_key->members = (Lifetime_Object**)new_memory.data;
+    String_Const_u8 new_memory = base_allocate(lifetime_allocator->allocator, new_memory_size);
+    new_key->members = (Lifetime_Object**)new_memory.str;
     block_copy_dynamic_array(new_key->members, object_ptr_array, count);
     new_key->count = count;
     dynamic_workspace_init(lifetime_allocator,
@@ -435,7 +435,7 @@ lifetime_get_or_create_intersection_key(Lifetime_Allocator *lifetime_allocator, 
                            &new_key->dynamic_workspace);
     
     {
-        Data key_data = lifetime__key_as_data(new_key);
+        String_Const_u8 key_data = lifetime__key_as_data(new_key);
         u64 new_key_val = (u64)PtrAsInt(new_key);
         table_insert(&lifetime_allocator->key_table, key_data, new_key_val);
         table_insert(&lifetime_allocator->key_check_table, new_key_val, new_key_val);
@@ -471,8 +471,8 @@ get_dynamic_object_memory_ptr(Managed_Object_Standard_Header *header){
 internal Managed_Object
 managed_object_alloc_managed_memory(Dynamic_Workspace *workspace, i32 item_size, i32 count, void **ptr_out){
     i32 size = item_size*count;
-    Data new_memory = base_allocate(&workspace->heap_wrapper, sizeof(Managed_Memory_Header) + size);
-    void *ptr = new_memory.data;
+    String_Const_u8 new_memory = base_allocate(&workspace->heap_wrapper, sizeof(Managed_Memory_Header) + size);
+    void *ptr = new_memory.str;
     Managed_Memory_Header *header = (Managed_Memory_Header*)ptr;
     header->std_header.type = ManagedObjectType_Memory;
     header->std_header.item_size = item_size;
@@ -487,8 +487,8 @@ managed_object_alloc_managed_memory(Dynamic_Workspace *workspace, i32 item_size,
 internal Managed_Object
 managed_object_alloc_buffer_markers(Dynamic_Workspace *workspace, Buffer_ID buffer_id, i32 count, Marker **markers_out){
     i32 size = count*sizeof(Marker);
-    Data new_memory = base_allocate(&workspace->heap_wrapper, size + sizeof(Managed_Buffer_Markers_Header));
-    void *ptr = new_memory.data;
+    String_Const_u8 new_memory = base_allocate(&workspace->heap_wrapper, size + sizeof(Managed_Buffer_Markers_Header));
+    void *ptr = new_memory.str;
     Managed_Buffer_Markers_Header *header = (Managed_Buffer_Markers_Header*)ptr;
     header->std_header.type = ManagedObjectType_Markers;
     header->std_header.item_size = sizeof(Marker);

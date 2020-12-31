@@ -1274,7 +1274,7 @@ sm_op(char *lexeme){
         Table_Lookup lookup = table_lookup(&helper_ctx.char_to_name, l.str[i]);
         // If this fails first check that all the characters in the lexeme are named!
         Assert(lookup.found_match);
-        Data name_data = {};
+        String_Const_u8 name_data = {};
         table_read(&helper_ctx.char_to_name, lookup, &name_data);
         string_list_push(helper_ctx.arena, &name_list, SCu8(name_data.data, name_data.size));
     }

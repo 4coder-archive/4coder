@@ -1726,12 +1726,12 @@ view_current_context(Application_Links *app, View_ID view_id){
     return(result);
 }
 
-api(custom) function Data
+api(custom) function String_Const_u8
 view_current_context_hook_memory(Application_Links *app, View_ID view_id,
                                  Hook_ID hook_id){
     Models *models = (Models*)app->cmd_context;
     View *view = imp_get_view(models, view_id);
-    Data result = {};
+    String_Const_u8 result = {};
     if (api_check_view(view)){
         View_Context_Node *ctx = view_current_context_node(view);
         if (ctx != 0){
@@ -1969,9 +1969,9 @@ managed_scope_get_attachment(Application_Links *app, Managed_Scope scope, Manage
     void *result = 0;
     if (workspace != 0){
         Dynamic_Variable_Block *var_block = &workspace->var_block;
-        Data data = dynamic_variable_get(var_block, id, size);
+        String_Const_u8 data = dynamic_variable_get(var_block, id, size);
         if (data.size >= size){
-            result = data.data;
+            result = data.str;
         }
         else{
 #define M \

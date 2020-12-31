@@ -13,7 +13,7 @@ internal u64
 log_parse__string_code(Log_Parse *parse, String_Const_u8 string, Log_String_Source string_source){
     u64 result = 0;
     if (string.size > 0){
-        Data data = make_data(string.str, string.size);
+        String_Const_u8 data = make_data(string.str, string.size);
         Table_Lookup lookup = table_lookup(&parse->string_to_id_table, data);
         if (lookup.found_match){
             table_read(&parse->string_to_id_table, lookup, &result);
@@ -36,9 +36,7 @@ log_parse__get_string(Log_Parse *parse, u64 code){
     Table_Lookup lookup = table_lookup(&parse->id_to_string_table, code);
     String_Const_u8 result = {};
     if (lookup.found_match){
-        Data val = {};
-        table_read(&parse->id_to_string_table, lookup, &val);
-        result = SCu8(val.data, val.size);
+        table_read(&parse->id_to_string_table, lookup, &result);
     }
     return(result);
 }
@@ -121,7 +119,7 @@ internal Log_Event_List*
 log_parse__get_or_make_list_tag_value(Log_Parse *parse, Log_Tag *tag){
     Log_Event_List *result = 0;
     Log_Tag_Name_Value key = {tag->name, tag->value};
-	Data data_key = make_data_struct(&key);
+    String_Const_u8 data_key = make_data_struct(&key);
     Table_Lookup lookup = table_lookup(&parse->tag_value_to_event_list_table, data_key);
     if (lookup.found_match){
         u64 val = 0;

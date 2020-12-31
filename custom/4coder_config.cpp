@@ -269,7 +269,7 @@ def_config_parser_top(Config_Parser *ctx){
 
 function i32*
 def_config_parser_version(Config_Parser *ctx){
-    require(def_config_parser_match_text(ctx, string_u8_litinit("version")));
+    require(def_config_parser_match_text(ctx, str8_lit("version")));
     
     if (!def_config_parser_match_cpp_kind(ctx, TokenCppKind_ParenOp)){
         def_config_parser_push_error_here(ctx, "expected token '(' for version specifier: 'version(#)'");
@@ -632,10 +632,10 @@ def_var_dump_rvalue(Application_Links *app, Config *config, Variable_Handle dst,
     if (boolean != 0){
         String_ID val = 0;
         if (*boolean){
-            val = vars_save_string(string_litinit("true"));
+            val = vars_save_string(str8_lit("true"));
         }
         else{
-            val = vars_save_string(string_litinit("false"));
+            val = vars_save_string(str8_lit("false"));
         }
         vars_new_variable(dst, l_value, val);
     }
@@ -745,10 +745,10 @@ global String_ID def_config_lookup_table[def_config_lookup_count] = {};
 function void
 _def_config_table_init(void){
     if (def_config_lookup_table[0] == 0){
-        def_config_lookup_table[0] = vars_save_string(string_u8_litinit("ses_config"));
-        def_config_lookup_table[1] = vars_save_string(string_u8_litinit("prj_config"));
-        def_config_lookup_table[2] = vars_save_string(string_u8_litinit("usr_config"));
-        def_config_lookup_table[3] = vars_save_string(string_u8_litinit("def_config"));
+        def_config_lookup_table[0] = vars_save_string(str8_lit("ses_config"));
+        def_config_lookup_table[1] = vars_save_string(str8_lit("prj_config"));
+        def_config_lookup_table[2] = vars_save_string(str8_lit("usr_config"));
+        def_config_lookup_table[3] = vars_save_string(str8_lit("def_config"));
     }
 }
 
@@ -1354,9 +1354,9 @@ change_mode(Application_Links *app, String_Const_u8 mode){
 function Config*
 config_parse__file_handle(Application_Links *app, Arena *arena, String_Const_u8 file_name, FILE *file){
     Config *parsed = 0;
-    Data data = dump_file_handle(arena, file);
-    if (data.data != 0){
-        parsed = def_config_from_text(app, arena, file_name, SCu8(data));
+    String_Const_u8 data = dump_file_handle(arena, file);
+    if (data.str != 0){
+        parsed = def_config_from_text(app, arena, file_name, data);
     }
     return(parsed);
 }
@@ -1366,10 +1366,10 @@ config_parse__file_name(Application_Links *app, Arena *arena, char *file_name){
     Config *parsed = 0;
     FILE *file = open_file_try_current_path_then_binary_path(app, file_name);
     if (file != 0){
-        Data data = dump_file_handle(arena, file);
+        String_Const_u8 data = dump_file_handle(arena, file);
         fclose(file);
-        if (data.data != 0){
-            parsed = def_config_from_text(app, arena, SCu8(file_name), SCu8(data));
+        if (data.str != 0){
+            parsed = def_config_from_text(app, arena, SCu8(file_name), data);
         }
     }
     return(parsed);
@@ -1435,10 +1435,10 @@ theme_parse__buffer(Application_Links *app, Arena *arena, Buffer_ID buffer, Aren
 
 function Config*
 theme_parse__file_handle(Application_Links *app, Arena *arena, String_Const_u8 file_name, FILE *file, Arena *color_arena, Color_Table *color_table){
-    Data data = dump_file_handle(arena, file);
+    String_Const_u8 data = dump_file_handle(arena, file);
     Config *parsed = 0;
-    if (data.data != 0){
-        parsed = theme_parse__data(app, arena, file_name, SCu8(data), color_arena, color_table);
+    if (data.str != 0){
+        parsed = theme_parse__data(app, arena, file_name, data, color_arena, color_table);
     }
     return(parsed);
 }
@@ -1448,9 +1448,9 @@ theme_parse__file_name(Application_Links *app, Arena *arena, char *file_name, Ar
     Config *parsed = 0;
     FILE *file = open_file_try_current_path_then_binary_path(app, file_name);
     if (file != 0){
-        Data data = dump_file_handle(arena, file);
+        String_Const_u8 data = dump_file_handle(arena, file);
         fclose(file);
-        parsed = theme_parse__data(app, arena, SCu8(file_name), SCu8(data), color_arena, color_table);
+        parsed = theme_parse__data(app, arena, SCu8(file_name), data, color_arena, color_table);
     }
     if (parsed == 0){
         Scratch_Block scratch(app, arena);

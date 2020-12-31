@@ -148,15 +148,15 @@ round_up_pot_u32(u32 x){
 
 ////////////////////////////////
 
-function Data
+function String_Const_u8
 make_data(void *memory, u64 size){
-    Data data = {(u8*)memory, size};
+    String_Const_u8 data = {(u8*)memory, size};
     return(data);
 }
 
 #define make_data_struct(s) make_data((s), sizeof(*(s)))
 
-global_const Data zero_data = {};
+global_const String_Const_u8 zero_data = {};
 
 #define data_initr(m,s) {(u8*)(m), (s)}
 #define data_initr_struct(s) {(u8*)(s), sizeof(*(s))}
@@ -172,8 +172,8 @@ block_zero(void *mem, u64 size){
     }
 }
 function void
-block_zero(Data data){
-    block_zero(data.data, data.size);
+block_zero(String_Const_u8 data){
+    block_zero(data.str, data.size);
 }
 function void
 block_fill_ones(void *mem, u64 size){
@@ -182,8 +182,8 @@ block_fill_ones(void *mem, u64 size){
     }
 }
 function void
-block_fill_ones(Data data){
-    block_fill_ones(data.data, data.size);
+block_fill_ones(String_Const_u8 data){
+    block_fill_ones(data.str, data.size);
 }
 function void
 block_copy(void *dst, const void *src, u64 size){
@@ -2933,11 +2933,6 @@ SCu8(char *str){
     return(SCu8((u8*)str));
 }
 
-function String_Const_u8
-SCu8(Data data){
-    return(SCu8((u8*)data.data, data.size));
-}
-
 function String_Const_u16
 SCu16(wchar_t *str, u64 size){
     return(SCu16((u16*)str, size));
@@ -3043,7 +3038,7 @@ make_base_allocator(Base_Allocator_Reserve_Signature *func_reserve,
     };
     return(base_allocator);
 }
-function Data
+function String_Const_u8
 base_allocate__inner(Base_Allocator *allocator, u64 size, String_Const_u8 location){
     u64 full_size = 0;
     void *memory = allocator->reserve(allocator->user_data, size, &full_size, location);
@@ -3058,7 +3053,7 @@ base_free(Base_Allocator *allocator, void *ptr){
 }
 
 #define base_allocate(a,s) base_allocate__inner((a), (s), file_name_line_number_lit_u8)
-#define base_array_loc(a,T,c,l) (T*)(base_allocate__inner((a), sizeof(T)*(c), (l)).data)
+#define base_array_loc(a,T,c,l) (T*)(base_allocate__inner((a), sizeof(T)*(c), (l)).str)
 #define base_array(a,T,c) base_array_loc(a,T,c, file_name_line_number_lit_u8)
 
 ////////////////////////////////
@@ -3069,19 +3064,19 @@ make_cursor(void *base, u64 size){
     return(cursor);
 }
 function Cursor
-make_cursor(Data data){
-    return(make_cursor(data.data, data.size));
+make_cursor(String_Const_u8 data){
+    return(make_cursor(data.str, data.size));
 }
 function Cursor
 make_cursor(Base_Allocator *allocator, u64 size){
-    Data memory = base_allocate(allocator, size);
+    String_Const_u8 memory = base_allocate(allocator, size);
     return(make_cursor(memory));
 }
-function Data
+function String_Const_u8
 linalloc_push(Cursor *cursor, u64 size, String_Const_u8 location){
-    Data result = {};
+    String_Const_u8 result = {};
     if (cursor->pos + size <= cursor->cap){
-        result.data = cursor->base + cursor->pos;
+        result.str = cursor->base + cursor->pos;
         result.size = size;
         cursor->pos += size;
     }
@@ -3096,7 +3091,7 @@ linalloc_pop(Cursor *cursor, u64 size){
         cursor->pos = 0;
     }
 }
-function Data
+function String_Const_u8
 linalloc_align(Cursor *cursor, u64 alignment){
     u64 pos = round_up_u64(cursor->pos, alignment);
     u64 new_size = pos - cursor->pos;
@@ -3131,26 +3126,26 @@ make_arena(Base_Allocator *allocator){
 function Cursor_Node*
 arena__new_node(Arena *arena, u64 min_size, String_Const_u8 location){
     min_size = clamp_bot(min_size, arena->chunk_size);
-    Data memory = base_allocate__inner(arena->base_allocator, min_size + sizeof(Cursor_Node), location);
-    Cursor_Node *cursor_node = (Cursor_Node*)memory.data;
+    String_Const_u8 memory = base_allocate__inner(arena->base_allocator, min_size + sizeof(Cursor_Node), location);
+    Cursor_Node *cursor_node = (Cursor_Node*)memory.str;
     cursor_node->cursor = make_cursor(cursor_node + 1, memory.size - sizeof(Cursor_Node));
     sll_stack_push(arena->cursor_node, cursor_node);
     return(cursor_node);
 }
-function Data
+function String_Const_u8
 linalloc_push(Arena *arena, u64 size, String_Const_u8 location){
-    Data result = {};
+    String_Const_u8 result = {};
     if (size > 0){
         Cursor_Node *cursor_node = arena->cursor_node;
         if (cursor_node == 0){
             cursor_node = arena__new_node(arena, size, location);
         }
         result = linalloc_push(&cursor_node->cursor, size, location);
-        if (result.data == 0){
+        if (result.str == 0){
             cursor_node = arena__new_node(arena, size, location);
             result = linalloc_push(&cursor_node->cursor, size, location);
         }
-        Data alignment_data = linalloc_align(&cursor_node->cursor, arena->alignment);
+        String_Const_u8 alignment_data = linalloc_align(&cursor_node->cursor, arena->alignment);
         result.size += alignment_data.size;
     }
     return(result);
@@ -3174,10 +3169,10 @@ linalloc_pop(Arena *arena, u64 size){
     }
     arena->cursor_node = cursor_node;
 }
-function Data
+function String_Const_u8
 linalloc_align(Arena *arena, u64 alignment){
     arena->alignment = alignment;
-    Data data = {};
+    String_Const_u8 data = {};
     Cursor_Node *cursor_node = arena->cursor_node;
     if (cursor_node != 0){
         data = linalloc_align(&cursor_node->cursor, arena->alignment);
@@ -3218,18 +3213,18 @@ linalloc_clear(Arena *arena){
     linalloc_end_temp(temp);
 }
 function void*
-linalloc_wrap_unintialized(Data data){
-    return(data.data);
+linalloc_wrap_unintialized(String_Const_u8 data){
+    return(data.str);
 }
 function void*
-linalloc_wrap_zero(Data data){
-    block_zero(data.data, data.size);
-    return(data.data);
+linalloc_wrap_zero(String_Const_u8 data){
+    block_zero(data.str, data.size);
+    return(data.str);
 }
 function void*
-linalloc_wrap_write(Data data, u64 size, void *src){
-    block_copy(data.data, src, clamp_top(data.size, size));
-    return(data.data);
+linalloc_wrap_write(String_Const_u8 data, u64 size, void *src){
+    block_copy(data.str, src, clamp_top(data.size, size));
+    return(data.str);
 }
 #define push_array(a,T,c) ((T*)linalloc_wrap_unintialized(linalloc_push((a), sizeof(T)*(c), file_name_line_number_lit_u8)))
 #define push_array_zero(a,T,c) ((T*)linalloc_wrap_zero(linalloc_push((a), sizeof(T)*(c), file_name_line_number_lit_u8)))
@@ -3642,25 +3637,25 @@ base_allocator_on_heap(Heap *heap){
 
 ////////////////////////////////
 
-function Data
+function String_Const_u8
 push_data(Arena *arena, u64 size){
-    Data result = {};
-    result.data = push_array(arena, u8, size);
+    String_Const_u8 result = {};
+    result.str = push_array(arena, u8, size);
     result.size = size;
     return(result);
 }
 
-function Data
-push_data_copy(Arena *arena, Data data){
-    Data result = {};
-    result.data = push_array_write(arena, u8, data.size, data.data);
+function String_Const_u8
+push_data_copy(Arena *arena, String_Const_u8 data){
+    String_Const_u8 result = {};
+    result.str = push_array_write(arena, u8, data.size, data.str);
     result.size = data.size;
     return(result);
 }
 
 function b32
-data_match(Data a, Data b){
-    return(a.size == b.size && block_match(a.data, b.data, a.size));
+data_match(String_Const_u8 a, String_Const_u8 b){
+    return(a.size == b.size && block_match(a.str, b.str, a.size));
 }
 
 ////////////////////////////////
@@ -7004,8 +6999,8 @@ byte_is_ascii(u8 byte){
 }
 
 function b32
-data_is_ascii(Data data){
-    u8 *ptr = (u8*)data.data;
+data_is_ascii(String_Const_u8 data){
+    u8 *ptr = data.str;
     u8 *one_past_last = ptr + data.size;
     b32 result = true;
     for (;ptr < one_past_last; ptr += 1){
@@ -7260,9 +7255,9 @@ string_base64_encode_from_binary(Arena *arena, void *data, u64 size){
     return(string);
 }
 
-function Data
+function String_Const_u8
 data_decode_from_base64(Arena *arena, u8 *str, u64 size){
-    Data data = {};
+    String_Const_u8 data = {};
     if (size%4 == 0){
         u64 data_size = size*6/8;
         if (str[size - 2] == '?'){
@@ -7274,7 +7269,7 @@ data_decode_from_base64(Arena *arena, u8 *str, u64 size){
         data = push_data(arena, data_size);
         u8 *s = str;
         u8 *se = s + size;
-        u8 *d = (u8*)data.data;
+        u8 *d = data.str;
         u8 *de = d + data_size;
         for (;s < se; d += 3, s += 4){
             u8 *D = d;

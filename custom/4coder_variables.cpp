@@ -29,7 +29,7 @@ vars_save_string(String_Const_u8 string){
     _vars_init();
     
     String_ID result = 0;
-    Data string_data = make_data(string.str, string.size);
+    String_Const_u8 string_data = make_data(string.str, string.size);
     Table_Lookup location = table_lookup(&vars_string_to_id, string_data);
     if (location.found_match){
         table_read(&vars_string_to_id, location, &result);
@@ -51,10 +51,10 @@ vars_read_string(Arena *arena, String_ID id){
     String_Const_u8 result = {};
     Table_Lookup location = table_lookup(&vars_id_to_string, id);
     if (location.found_match){
-        Data data = {};
+        String_Const_u8 data = {};
         table_read(&vars_id_to_string, location, &data);
         result.str = push_array(arena, u8 , data.size);
-        block_copy(result.str, data.data, data.size);
+        block_copy(result.str, data.str, data.size);
         result.size = data.size;
     }
     return(result);
@@ -158,7 +158,7 @@ vars_u64_from_var(Application_Links *app, Variable_Handle var){
     String_ID val = vars_string_id_from_var(var);
     String_Const_u8 string = vars_read_string(scratch, val);
     u64 result = 0;
-    if (string_match(string_prefix(string, 2), string_u8_litinit("0x"))){
+    if (string_match(string_prefix(string, 2), str8_lit("0x"))){
         String_Const_u8 string_hex = string_skip(string, 2);
         if (string_is_integer(string_hex, 0x10)){
             result = string_to_integer(string_hex, 0x10);

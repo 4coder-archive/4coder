@@ -733,9 +733,9 @@ do_full_lex_async__inner(Async_Context *actx, Buffer_ID buffer_id){
 }
 
 function void
-do_full_lex_async(Async_Context *actx, Data data){
+do_full_lex_async(Async_Context *actx, String_Const_u8 data){
     if (data.size == sizeof(Buffer_ID)){
-        Buffer_ID buffer = *(Buffer_ID*)data.data;
+        Buffer_ID buffer = *(Buffer_ID*)data.str;
         do_full_lex_async__inner(actx, buffer);
     }
 }

@@ -5,8 +5,8 @@
 // TOP
 
 internal u64
-table_hash(Data key){
-    return(table_hash_u8((u8*)key.data, key.size) | bit_64);
+table_hash(String_Const_u8 key){
+    return(table_hash_u8((u8*)key.str, key.size) | bit_64);
 }
 
 global_const u64 table_empty_slot = 0;
@@ -25,9 +25,9 @@ make_table_u64_u64__inner(Base_Allocator *allocator, u32 slot_count, String_Cons
     Table_u64_u64 table = {};
     table.allocator = allocator;
     slot_count = clamp_bot(8, slot_count);
-    Data mem = base_allocate__inner(allocator, slot_count*(sizeof(*table.keys) + sizeof(*table.vals)), location);
-    block_zero(mem.data, mem.size);
-    table.memory = mem.data;
+    String_Const_u8 mem = base_allocate__inner(allocator, slot_count*(sizeof(*table.keys) + sizeof(*table.vals)), location);
+    block_zero(mem.str, mem.size);
+    table.memory = mem.str;
     table.keys = (u64*)table.memory;
     table.vals = (u64*)(table.keys + slot_count);
     table.slot_count = slot_count;
@@ -192,9 +192,9 @@ make_table_u32_u16__inner(Base_Allocator *allocator, u32 slot_count, String_Cons
     Table_u32_u16 table = {};
     table.allocator = allocator;
     slot_count = clamp_bot(8, slot_count);
-    Data mem = base_allocate__inner(allocator, slot_count*(sizeof(*table.keys) + sizeof(*table.vals)), location);
-    block_zero(mem.data, mem.size);
-    table.memory = mem.data;
+    String_Const_u8 mem = base_allocate__inner(allocator, slot_count*(sizeof(*table.keys) + sizeof(*table.vals)), location);
+    block_zero(mem.str, mem.size);
+    table.memory = mem.str;
     table.keys = (u32*)table.memory;
     table.vals = (u16*)(table.keys + slot_count);
     table.slot_count = slot_count;
@@ -355,11 +355,11 @@ make_table_Data_u64__inner(Base_Allocator *allocator, u32 slot_count, String_Con
     Table_Data_u64 table = {};
     table.allocator = allocator;
     slot_count = clamp_bot(8, slot_count);
-    Data mem = base_allocate__inner(allocator, slot_count*(sizeof(*table.hashes) + sizeof(*table.keys) + sizeof(*table.vals)), location);
-    block_zero(mem.data, mem.size);
-    table.memory = mem.data;
+    String_Const_u8 mem = base_allocate__inner(allocator, slot_count*(sizeof(*table.hashes) + sizeof(*table.keys) + sizeof(*table.vals)), location);
+    block_zero(mem.str, mem.size);
+    table.memory = mem.str;
     table.hashes = (u64*)table.memory;
-    table.keys = (Data*)(table.hashes + slot_count);
+    table.keys = (String_Const_u8*)(table.hashes + slot_count);
     table.vals = (u64*)(table.keys + slot_count);
     table.slot_count = slot_count;
     table.used_count = 0;
@@ -376,7 +376,7 @@ table_free(Table_Data_u64 *table){
 }
 
 internal Table_Lookup
-table_lookup(Table_Data_u64 *table, Data key){
+table_lookup(Table_Data_u64 *table, String_Const_u8 key){
     Table_Lookup result = {};
     
     if (table->slot_count > 0){
@@ -434,7 +434,7 @@ table_read(Table_Data_u64 *table, Table_Lookup lookup, u64 *val_out){
 }
 
 internal b32
-table_read_key(Table_Data_u64 *table, Table_Lookup lookup, Data *key_out){
+table_read_key(Table_Data_u64 *table, Table_Lookup lookup, String_Const_u8 *key_out){
     b32 result = false;
     if (lookup.found_match){
         *key_out = table->keys[lookup.index];
@@ -444,13 +444,13 @@ table_read_key(Table_Data_u64 *table, Table_Lookup lookup, Data *key_out){
 }
 
 internal b32
-table_read(Table_Data_u64 *table, Data key, u64 *val_out){
+table_read(Table_Data_u64 *table, String_Const_u8 key, u64 *val_out){
     Table_Lookup lookup = table_lookup(table, key);
     return(table_read(table, lookup, val_out));
 }
 
 internal void
-table_insert__inner(Table_Data_u64 *table, Table_Lookup lookup, Data key, u64 val){
+table_insert__inner(Table_Data_u64 *table, Table_Lookup lookup, String_Const_u8 key, u64 val){
     Assert(lookup.found_empty_slot || lookup.found_erased_slot);
     table->hashes[lookup.index] = lookup.hash;
     table->keys[lookup.index] = key;
@@ -469,7 +469,7 @@ table_rehash(Table_Data_u64 *dst, Table_Data_u64 *src){
         u64 *src_hashes = src->hashes;
         for (u32 i = 0; i < src_slot_count; i += 1){
             if (HasFlag(src_hashes[i], bit_64)){
-                Data key = src->keys[i];
+                String_Const_u8 key = src->keys[i];
                 Table_Lookup lookup = table_lookup(dst, key);
                 table_insert__inner(dst, lookup, key, src->vals[i]);
             }
@@ -480,9 +480,9 @@ table_rehash(Table_Data_u64 *dst, Table_Data_u64 *src){
 }
 
 internal b32
-table_insert(Table_Data_u64 *table, Data key, u64 val){
+table_insert(Table_Data_u64 *table, String_Const_u8 key, u64 val){
     b32 result = false;
-    if (key.data != 0){
+    if (key.str != 0){
         Table_Lookup lookup = table_lookup(table, key);
         if (!lookup.found_match){
             if ((table->dirty_count + 1)*8 >= table->slot_count*7){
@@ -505,7 +505,7 @@ table_insert(Table_Data_u64 *table, Data key, u64 val){
 }
 
 internal b32
-table_erase(Table_Data_u64 *table, Data key){
+table_erase(Table_Data_u64 *table, String_Const_u8 key){
     b32 result = false;
     Table_Lookup lookup = table_lookup(table, key);
     if (lookup.found_match){
@@ -534,11 +534,11 @@ make_table_u64_Data__inner(Base_Allocator *allocator, u32 slot_count, String_Con
     Table_u64_Data table = {};
     table.allocator = allocator;
     slot_count = clamp_bot(8, slot_count);
-    Data mem = base_allocate__inner(allocator, slot_count*(sizeof(*table.keys) + sizeof(*table.vals)), location);
-    block_zero(mem.data, mem.size);
-    table.memory = mem.data;
+    String_Const_u8 mem = base_allocate__inner(allocator, slot_count*(sizeof(*table.keys) + sizeof(*table.vals)), location);
+    block_zero(mem.str, mem.size);
+    table.memory = mem.str;
     table.keys = (u64*)table.memory;
-    table.vals = (Data*)(table.keys + slot_count);
+    table.vals = (String_Const_u8*)(table.keys + slot_count);
     table.slot_count = slot_count;
     table.used_count = 0;
     table.dirty_count = 0;
@@ -600,7 +600,7 @@ table_lookup(Table_u64_Data *table, u64 key){
 }
 
 internal b32
-table_read(Table_u64_Data *table, Table_Lookup lookup, Data *val_out){
+table_read(Table_u64_Data *table, Table_Lookup lookup, String_Const_u8 *val_out){
     b32 result = false;
     if (lookup.found_match){
         *val_out = table->vals[lookup.index];
@@ -610,13 +610,13 @@ table_read(Table_u64_Data *table, Table_Lookup lookup, Data *val_out){
 }
 
 internal b32
-table_read(Table_u64_Data *table, u64 key, Data *val_out){
+table_read(Table_u64_Data *table, u64 key, String_Const_u8 *val_out){
     Table_Lookup lookup = table_lookup(table, key);
     return(table_read(table, lookup, val_out));
 }
 
 internal void
-table_insert__inner(Table_u64_Data *table, Table_Lookup lookup, Data val){
+table_insert__inner(Table_u64_Data *table, Table_Lookup lookup, String_Const_u8 val){
     Assert(lookup.found_empty_slot || lookup.found_erased_slot);
     table->keys[lookup.index] = lookup.hash;
     table->vals[lookup.index] = val;
@@ -646,7 +646,7 @@ table_rehash(Table_u64_Data *dst, Table_u64_Data *src){
 }
 
 internal b32
-table_insert(Table_u64_Data *table, u64 key, Data val){
+table_insert(Table_u64_Data *table, u64 key, String_Const_u8 val){
     b32 result = false;
     if (key != table_empty_key && table_erased_key){
         Table_Lookup lookup = table_lookup(table, key);
@@ -703,12 +703,12 @@ make_table_Data_Data__inner(Base_Allocator *allocator, u32 slot_count, String_Co
     Table_Data_Data table = {};
     table.allocator = allocator;
     slot_count = clamp_bot(8, slot_count);
-    Data mem = base_allocate__inner(allocator, slot_count*(sizeof(*table.hashes) + sizeof(*table.keys) + sizeof(*table.vals)), location);
-    block_zero(mem.data, mem.size);
-    table.memory = mem.data;
+    String_Const_u8 mem = base_allocate__inner(allocator, slot_count*(sizeof(*table.hashes) + sizeof(*table.keys) + sizeof(*table.vals)), location);
+    block_zero(mem.str, mem.size);
+    table.memory = mem.str;
     table.hashes = (u64*)table.memory;
-    table.keys = (Data*)(table.hashes + slot_count);
-    table.vals = (Data*)(table.keys + slot_count);
+    table.keys = (String_Const_u8*)(table.hashes + slot_count);
+    table.vals = (String_Const_u8*)(table.keys + slot_count);
     table.slot_count = slot_count;
     table.used_count = 0;
     table.dirty_count = 0;
@@ -724,7 +724,7 @@ table_free(Table_Data_Data *table){
 }
 
 internal Table_Lookup
-table_lookup(Table_Data_Data *table, Data key){
+table_lookup(Table_Data_Data *table, String_Const_u8 key){
     Table_Lookup result = {};
     
     if (table->slot_count > 0){
@@ -770,7 +770,7 @@ table_lookup(Table_Data_Data *table, Data key){
 }
 
 internal b32
-table_read(Table_Data_Data *table, Table_Lookup lookup, Data *val_out){
+table_read(Table_Data_Data *table, Table_Lookup lookup, String_Const_u8 *val_out){
     b32 result = false;
     if (lookup.found_match){
         *val_out = table->vals[lookup.index];
@@ -780,7 +780,7 @@ table_read(Table_Data_Data *table, Table_Lookup lookup, Data *val_out){
 }
 
 internal b32
-table_read_key(Table_Data_Data *table, Table_Lookup lookup, Data *key_out){
+table_read_key(Table_Data_Data *table, Table_Lookup lookup, String_Const_u8 *key_out){
     b32 result = false;
     if (lookup.found_match){
         *key_out = table->keys[lookup.index];
@@ -790,13 +790,13 @@ table_read_key(Table_Data_Data *table, Table_Lookup lookup, Data *key_out){
 }
 
 internal b32
-table_read(Table_Data_Data *table, Data key, Data *val_out){
+table_read(Table_Data_Data *table, String_Const_u8 key, String_Const_u8 *val_out){
     Table_Lookup lookup = table_lookup(table, key);
     return(table_read(table, lookup, val_out));
 }
 
 internal void
-table_insert__inner(Table_Data_Data *table, Table_Lookup lookup, Data key, Data val){
+table_insert__inner(Table_Data_Data *table, Table_Lookup lookup, String_Const_u8 key, String_Const_u8 val){
     Assert(lookup.found_empty_slot || lookup.found_erased_slot);
     table->hashes[lookup.index] = lookup.hash;
     table->keys[lookup.index] = key;
@@ -815,7 +815,7 @@ table_rehash(Table_Data_Data *dst, Table_Data_Data *src){
         u64 *src_hashes = src->hashes;
         for (u32 i = 0; i < src_slot_count; i += 1){
             if (HasFlag(src_hashes[i], bit_64)){
-                Data key = src->keys[i];
+                String_Const_u8 key = src->keys[i];
                 Table_Lookup lookup = table_lookup(dst, key);
                 table_insert__inner(dst, lookup, key, src->vals[i]);
             }
@@ -826,9 +826,9 @@ table_rehash(Table_Data_Data *dst, Table_Data_Data *src){
 }
 
 internal b32
-table_insert(Table_Data_Data *table, Data key, Data val){
+table_insert(Table_Data_Data *table, String_Const_u8 key, String_Const_u8 val){
     b32 result = false;
-    if (key.data != 0){
+    if (key.str != 0){
         Table_Lookup lookup = table_lookup(table, key);
         if (!lookup.found_match){
             if ((table->dirty_count + 1)*8 >= table->slot_count*7){
@@ -851,7 +851,7 @@ table_insert(Table_Data_Data *table, Data key, Data val){
 }
 
 internal b32
-table_erase(Table_Data_Data *table, Data key){
+table_erase(Table_Data_Data *table, String_Const_u8 key){
     b32 result = false;
     Table_Lookup lookup = table_lookup(table, key);
     if (lookup.found_match){

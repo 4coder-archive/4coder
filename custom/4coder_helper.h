@@ -9,7 +9,7 @@
 
 struct File_Name_Data{
     String_Const_u8 file_name;
-    Data data;
+    String_Const_u8 data;
 };
 
 struct View_Context_Block{

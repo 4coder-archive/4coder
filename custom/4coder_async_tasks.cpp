@@ -25,8 +25,7 @@ async_pop_node(Async_System *async_system){
 }
 
 function Async_Node*
-async_push_node__inner(Async_System *async_system, Async_Task_Function_Type *func,
-                       Data data){
+async_push_node__inner(Async_System *async_system, Async_Task_Function_Type *func, String_Const_u8 data){
     Async_Task result = async_system->task_id_counter;
     async_system->task_id_counter += 1;
     
@@ -40,8 +39,8 @@ async_push_node__inner(Async_System *async_system, Async_Task_Function_Type *fun
     node->task = result;
     node->thread = 0;
     node->func = func;
-    node->data.data = (u8*)heap_allocate(&async_system->node_heap, data.size);
-    block_copy(node->data.data, data.data, data.size);
+    node->data.str = (u8*)heap_allocate(&async_system->node_heap, data.size);
+    block_copy(node->data.str, data.str, data.size);
     node->data.size = data.size;
     dll_insert_back(&async_system->task_sent, &node->node);
     async_system->task_count += 1;
@@ -51,14 +50,14 @@ async_push_node__inner(Async_System *async_system, Async_Task_Function_Type *fun
 }
 
 function Async_Task
-async_push_node(Async_System *async_system, Async_Task_Function_Type *func, Data data){
+async_push_node(Async_System *async_system, Async_Task_Function_Type *func, String_Const_u8 data){
     Async_Node *node = async_push_node__inner(async_system, func, data);
     return(node->task);
 }
 
 function void
 async_free_node(Async_System *async_system, Async_Node *node){
-    heap_free(&async_system->node_heap, node->data.data);
+    heap_free(&async_system->node_heap, node->data.str);
     sll_stack_push(async_system->free_nodes, node);
 }
 
@@ -150,8 +149,7 @@ async_task_handler_init(Application_Links *app, Async_System *async_system){
 }
 
 function Async_Task
-async_task_no_dep(Async_System *async_system, Async_Task_Function_Type *func,
-                  Data data){
+async_task_no_dep(Async_System *async_system, Async_Task_Function_Type *func, String_Const_u8 data){
     system_mutex_acquire(async_system->mutex);
     Async_Task result = async_push_node(async_system, func, data);
     system_mutex_release(async_system->mutex);

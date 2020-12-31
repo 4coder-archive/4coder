@@ -93,7 +93,7 @@ api(custom) function b32 view_push_context(Application_Links* app, View_ID view_
 api(custom) function b32 view_pop_context(Application_Links* app, View_ID view_id);
 api(custom) function b32 view_alter_context(Application_Links* app, View_ID view_id, View_Context* ctx);
 api(custom) function View_Context view_current_context(Application_Links* app, View_ID view_id);
-api(custom) function Data view_current_context_hook_memory(Application_Links* app, View_ID view_id, Hook_ID hook_id);
+api(custom) function String_Const_u8 view_current_context_hook_memory(Application_Links* app, View_ID view_id, Hook_ID hook_id);
 api(custom) function Managed_Scope create_user_managed_scope(Application_Links* app);
 api(custom) function b32 destroy_user_managed_scope(Application_Links* app, Managed_Scope scope);
 api(custom) function Managed_Scope get_global_managed_scope(Application_Links* app);

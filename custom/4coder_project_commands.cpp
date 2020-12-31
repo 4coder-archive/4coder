@@ -552,26 +552,26 @@ prj_version_1_to_version_2(Application_Links *app, Config *parsed, Project *proj
     Scratch_Block scratch(app);
     
     String_ID project_id = vars_save_string_lit("prj_config");
-    String_ID version_id = vars_save_string(string_litinit("version"));
-    String_ID project_name_id = vars_save_string(string_litinit("project_name"));
-    String_ID patterns_id = vars_save_string(string_litinit("patterns"));
-    String_ID blacklist_patterns_id = vars_save_string(string_litinit("blacklist_patterns"));
+    String_ID version_id = vars_save_string(str8_lit("version"));
+    String_ID project_name_id = vars_save_string(str8_lit("project_name"));
+    String_ID patterns_id = vars_save_string(str8_lit("patterns"));
+    String_ID blacklist_patterns_id = vars_save_string(str8_lit("blacklist_patterns"));
     
-    String_ID load_paths_id = vars_save_string(string_litinit("load_paths"));
-    String_ID path_id = vars_save_string(string_litinit("path"));
-    String_ID recursive_id = vars_save_string(string_litinit("recursive"));
-    String_ID relative_id = vars_save_string(string_litinit("relative"));
-    String_ID true_id = vars_save_string(string_litinit("true"));
-    String_ID false_id = vars_save_string(string_litinit("false"));
+    String_ID load_paths_id = vars_save_string(str8_lit("load_paths"));
+    String_ID path_id = vars_save_string(str8_lit("path"));
+    String_ID recursive_id = vars_save_string(str8_lit("recursive"));
+    String_ID relative_id = vars_save_string(str8_lit("relative"));
+    String_ID true_id = vars_save_string(str8_lit("true"));
+    String_ID false_id = vars_save_string(str8_lit("false"));
     
-    String_ID out_id = vars_save_string(string_litinit("out"));
-    String_ID footer_panel_id = vars_save_string(string_litinit("footer_panel"));
-    String_ID save_dirty_files_id = vars_save_string(string_litinit("save_dirty_files"));
-    String_ID cursor_at_end_id = vars_save_string(string_litinit("cursor_at_end"));
+    String_ID out_id = vars_save_string(str8_lit("out"));
+    String_ID footer_panel_id = vars_save_string(str8_lit("footer_panel"));
+    String_ID save_dirty_files_id = vars_save_string(str8_lit("save_dirty_files"));
+    String_ID cursor_at_end_id = vars_save_string(str8_lit("cursor_at_end"));
     
-    String_ID fkey_command_id = vars_save_string(string_litinit("fkey_command"));
+    String_ID fkey_command_id = vars_save_string(str8_lit("fkey_command"));
     
-    String_ID os_id = vars_save_string(string_litinit(OS_NAME));;
+    String_ID os_id = vars_save_string(str8_lit(OS_NAME));;
     
     Variable_Handle proj_var = vars_new_variable(vars_get_root(), project_id, vars_save_string(parsed->file_name));
     
@@ -797,12 +797,12 @@ CUSTOM_DOC("Looks for a project.4coder file in the current directory and tries t
     }
     else{
         File_Name_Data dump = dump_file_search_up_path(app, scratch, project_path, string_u8_litexpr("project.4coder"));
-        if (dump.data.data != 0){
+        if (dump.data.str != 0){
             String_Const_u8 project_root = string_remove_last_folder(dump.file_name);
             
-            Token_Array array = token_array_from_text(app, scratch, SCu8(dump.data));
+            Token_Array array = token_array_from_text(app, scratch, dump.data);
             if (array.tokens != 0){
-                project_parse.parsed = def_config_parse(app, scratch, dump.file_name, SCu8(dump.data), array);
+                project_parse.parsed = def_config_parse(app, scratch, dump.file_name, dump.data, array);
                 if (project_parse.parsed != 0){
                     i32 version = 0;
                     if (project_parse.parsed->version != 0){

@@ -7,7 +7,7 @@
 #if !defined(FCODER_ASYNC_TASKS_H)
 #define FCODER_ASYNC_TASKS_H
 
-typedef void Async_Task_Function_Type(struct Async_Context *actx, Data data);
+typedef void Async_Task_Function_Type(struct Async_Context *actx, String_Const_u8 data);
 typedef u64 Async_Task;
 
 struct Async_Thread{
@@ -26,7 +26,7 @@ struct Async_Node{
     Async_Task task;
     Async_Thread *thread;
     Async_Task_Function_Type *func;
-    Data data;
+    String_Const_u8 data;
 };
 
 struct Async_System{

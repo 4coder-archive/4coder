@@ -567,9 +567,9 @@ profile_render(Application_Links *app, Frame_Info frame_info, View_ID view){
                                  ProfileInspectTab_Errors);
             }
             
-                profile_draw_tab(app, &tab_state, inspect,
-                                 string_u8_litexpr("memory"),
-                                 ProfileInspectTab_Memory);
+            profile_draw_tab(app, &tab_state, inspect,
+                             string_u8_litexpr("memory"),
+                             ProfileInspectTab_Memory);
             
             if (inspect->tab_id == ProfileInspectTab_Selection){
                 String_Const_u8 string = {};
@@ -742,7 +742,7 @@ profile_render(Application_Links *app, Frame_Info frame_info, View_ID view){
                      node != 0;
                      node = next){
                     next = node->next;
-                    Data key = make_data(node->location.str, node->location.size);
+                    String_Const_u8 key = make_data(node->location.str, node->location.size);
                     Table_Lookup lookup = table_lookup(&table, key);
                     Memory_Bucket *bucket = 0;
                     if (lookup.found_match){

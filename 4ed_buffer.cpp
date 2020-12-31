@@ -194,8 +194,8 @@ buffer_init(Gap_Buffer *buffer, u8 *data, u64 size, Base_Allocator *allocator){
     buffer->allocator = allocator;
     
     u64 capacity = round_up_u64(size*2, KB(4));
-    Data memory = base_allocate(allocator, capacity);
-    buffer->data = (u8*)memory.data;
+    String_Const_u8 memory = base_allocate(allocator, capacity);
+    buffer->data = (u8*)memory.str;
     buffer->size1 = size/2;
     buffer->gap_size = capacity - size;
     buffer->size2 = size - buffer->size1;
@@ -215,8 +215,8 @@ buffer_replace_range(Gap_Buffer *buffer, Range_i64 range, String_Const_u8 text, 
     if (shift_amount + size > buffer->max){
         i64 new_max = round_up_i64(2*(shift_amount + size), KB(4));
         i64 new_gap_size = new_max - size;
-        Data new_memory_data = base_allocate(buffer->allocator, new_max);
-        u8 *new_memory = (u8*)new_memory_data.data;
+        String_Const_u8 new_memory_data = base_allocate(buffer->allocator, new_max);
+        u8 *new_memory = (u8*)new_memory_data.str;
         block_copy(new_memory, buffer->data, buffer->size1);
         block_copy(new_memory + buffer->size1 + new_gap_size, buffer->data + buffer->size1 + buffer->gap_size,
                    buffer->size2);
@@ -364,8 +364,8 @@ internal void
 buffer_starts__ensure_max_size(Gap_Buffer *buffer, i64 max_size){
     if (max_size > buffer->line_start_max){
         i64 new_max = round_up_i64(max_size*2, KB(1));
-        Data memory = base_allocate(buffer->allocator, sizeof(*buffer->line_starts)*new_max);
-        i64 *new_line_starts = (i64*)memory.data;
+        String_Const_u8 memory = base_allocate(buffer->allocator, sizeof(*buffer->line_starts)*new_max);
+        i64 *new_line_starts = (i64*)memory.str;
         block_copy_dynamic_array(new_line_starts, buffer->line_starts, buffer->line_start_count);
         buffer->line_start_max = new_max;
         base_free(buffer->allocator, buffer->line_starts);

@@ -21,21 +21,21 @@ push_build_directory_at_file(Application_Links *app, Arena *arena, Buffer_ID buf
 #if OS_WINDOWS
 
 global String_Const_u8 standard_build_file_name_array[] = {
-    string_u8_litinit("build.bat"),
+    str8_lit("build.bat"),
 };
 global String_Const_u8 standard_build_cmd_string_array[] = {
-    string_u8_litinit("build"),
+    str8_lit("build"),
 };
 
 #elif OS_LINUX || OS_MAC
 
 global String_Const_u8 standard_build_file_name_array[] = {
-    string_u8_litinit("build.sh"),
-    string_u8_litinit("Makefile"),
+    str8_lit("build.sh"),
+    str8_lit("Makefile"),
 };
 global String_Const_u8 standard_build_cmd_string_array[] = {
-    string_u8_litinit("build.sh"),
-    string_u8_litinit("make"),
+    str8_lit("build.sh"),
+    str8_lit("make"),
 };
 
 #else
