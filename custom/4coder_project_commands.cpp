@@ -808,6 +808,8 @@ CUSTOM_DOC("Looks for a project.4coder file in the current directory and tries t
     
     // NOTE(allen): Parse config data out of project file
     Project_Parse_Result project_parse = {};
+    Variable_Handle proj_var = vars_get_nil();
+    
     if (dump.data.str != 0){
         Token_Array array = token_array_from_text(app, scratch, dump.data);
         if (array.tokens != 0){
@@ -818,13 +820,30 @@ CUSTOM_DOC("Looks for a project.4coder file in the current directory and tries t
                     version = *project_parse.parsed->version;
                 }
                 switch (version){
+                    case 0:
+                    {
+                        proj_var = prj_version_1_to_version_2(app, project_parse.parsed, project_parse.project);
+                    }break;
+                    
                     case 1:
                     {
                         project_parse.project = parse_project__config_data__version_1(app, scratch, project_root, project_parse.parsed);
+                        proj_var = prj_version_1_to_version_2(app, project_parse.parsed, project_parse.project);
+                    }break;
+                    
+                    default:
+                    {
+                        proj_var = def_fill_var_from_config(app, vars_get_root(), vars_save_string_lit("prj_config"), project_parse.parsed);
                     }break;
                 }
             }
         }
+    }
+    
+    // NOTE(allen): Dump project
+    if (!vars_is_nil(proj_var)){
+        vars_print(app, proj_var);
+        print_message(app, string_u8_litexpr("\n"));
     }
     
     
@@ -872,8 +891,7 @@ CUSTOM_DOC("Looks for a project.4coder file in the current directory and tries t
             // Set window title
             if (project_parse.project->name.size > 0){
                 Temp_Memory temp = begin_temp(scratch);
-                String_Const_u8 builder = push_u8_stringf(scratch, "4coder project: %.*s",
-                                                          string_expand(project_parse.project->name));
+                String_Const_u8 builder = push_u8_stringf(scratch, "4coder project: %.*s", string_expand(project_parse.project->name));
                 set_window_title(app, builder);
                 end_temp(temp);
             }
@@ -883,21 +901,6 @@ CUSTOM_DOC("Looks for a project.4coder file in the current directory and tries t
             print_message(app, string_u8_litexpr(M));
 #undef M
         }
-    }
-    
-    if (project_parse.project != 0){
-        Variable_Handle proj_var = {};
-        
-        if (project_parse.parsed->version == 0 || *project_parse.parsed->version < 2){
-            print_message(app, string_u8_litexpr("Project variables converted from version 1 to version 2\n"));
-            proj_var = prj_version_1_to_version_2(app, project_parse.parsed, project_parse.project);
-        }
-        else{
-            proj_var = def_fill_var_from_config(app, vars_get_root(), vars_save_string_lit("prj_config"), project_parse.parsed);
-        }
-        
-        vars_print(app, proj_var);
-        print_message(app, string_u8_litexpr("\n"));
     }
     
     // NOTE(allen): errors
