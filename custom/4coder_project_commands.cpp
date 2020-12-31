@@ -1339,8 +1339,10 @@ get_project_command_from_user(Application_Links *app, Project *project, String_C
         Lister_Result l_result = run_lister(app, lister);
         if (!l_result.canceled){
             Project_Command *result_proj_cmd = (Project_Command*)l_result.user_data;
-            String_Const_u8 cmd_name = prj_sanitize_string(scratch, result_proj_cmd->name);
-            result = prj_command_from_name(app, cmd_name);
+            if (result_proj_cmd != 0){
+                String_Const_u8 cmd_name = prj_sanitize_string(scratch, result_proj_cmd->name);
+                result = prj_command_from_name(app, cmd_name);
+            }
         }
     }
     
