@@ -40,6 +40,7 @@ function b32             vars_match(Variable_Handle a, Variable_Handle b);
 
 function Variable_Handle vars_first_child(Variable_Handle var);
 function Variable_Handle vars_next_sibling(Variable_Handle var);
+function Variable_Handle vars_parent(Variable_Handle var);
 
 function Variable_Handle vars_read_key(Variable_Handle var, String_ID key);
 function String_ID       vars_key_id_from_var(Variable_Handle var);

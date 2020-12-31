@@ -121,6 +121,12 @@ vars_next_sibling(Variable_Handle var){
     return(result);
 }
 
+function Variable_Handle
+vars_parent(Variable_Handle var){
+    Variable_Handle result = {var.ptr->parent};
+    return(result);
+}
+
 function String_ID
 vars_key_id_from_var(Variable_Handle var){
     return(var.ptr->key);
@@ -277,11 +283,12 @@ vars_new_variable(Variable_Handle var, String_ID key){
             }
 			if (vars_is_nil(var.ptr->first)){
 				var.ptr->first = var.ptr->last = handle.ptr;
-			}
+            }
 			else{
 				var.ptr->last->next = handle.ptr;
 				var.ptr->last = handle.ptr;
 			}
+            handle.ptr->parent = var.ptr;
 			handle.ptr->next = vars_get_nil().ptr;
             handle.ptr->key = key;
         }

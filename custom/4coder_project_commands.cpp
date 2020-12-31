@@ -4,8 +4,10 @@
 
 // TOP
 
+#if 1
 global Project current_project = {};
 global Arena current_project_arena = {};
+#endif
 
 ///////////////////////////////
 
@@ -656,6 +658,12 @@ prj_version_1_to_version_2(Application_Links *app, Config *parsed, Project *proj
 	return(proj_var);
 }
 
+function String_Const_u8
+prj_path_from_project(Arena *arena, Variable_Handle project){
+    String_Const_u8 project_full_path = vars_string_from_var(arena, project);
+    String_Const_u8 project_dir = string_remove_last_folder(project_full_path);
+    return(project_dir);
+}
 
 function void
 prj_exec_command(Application_Links *app, Variable_Handle cmd_var){
@@ -711,9 +719,9 @@ prj_exec_command(Application_Links *app, Variable_Handle cmd_var){
             buffer_id = buffer_identifier(string_u8_litexpr("*dump*"));
         }
         
-        // TODO(allen): this dir is *wrong* we should come from the cmd_var's parent now.
-        String_Const_u8 dir = current_project.dir;
-        exec_system_command(app, view, buffer_id, dir, cmd, flags);
+        Variable_Handle parent = vars_parent(cmd_var);
+        String_Const_u8 project_dir = prj_path_from_project(scratch, parent);
+        exec_system_command(app, view, buffer_id, project_dir, cmd, flags);
         if (set_fancy_font){
             set_fancy_compilation_buffer_font(app);
         }
@@ -789,60 +797,38 @@ CUSTOM_DOC("Looks for a project.4coder file in the current directory and tries t
     save_all_dirty_buffers(app);
     Scratch_Block scratch(app);
     
-    Project_Parse_Result project_parse = {};
-    
+    // NOTE(allen): Load the project file from the hot directory
     String_Const_u8 project_path = push_hot_directory(app, scratch);
-    if (project_path.size == 0){
-        print_message(app, string_u8_litexpr("The hot directory is empty, cannot search for a project.\n"));
+    File_Name_Data dump = dump_file_search_up_path(app, scratch, project_path, string_u8_litexpr("project.4coder"));
+    String_Const_u8 project_root = string_remove_last_folder(dump.file_name);
+    
+    if (dump.data.str == 0){
+        print_message(app, string_u8_litexpr("Did not find project.4coder.\n"));
     }
-    else{
-        File_Name_Data dump = dump_file_search_up_path(app, scratch, project_path, string_u8_litexpr("project.4coder"));
-        if (dump.data.str != 0){
-            String_Const_u8 project_root = string_remove_last_folder(dump.file_name);
-            
-            Token_Array array = token_array_from_text(app, scratch, dump.data);
-            if (array.tokens != 0){
-                project_parse.parsed = def_config_parse(app, scratch, dump.file_name, dump.data, array);
-                if (project_parse.parsed != 0){
-                    i32 version = 0;
-                    if (project_parse.parsed->version != 0){
-                        version = *project_parse.parsed->version;
-                    }
-                    switch (version){
-                        case 1:
-                        {
-                            project_parse.project = parse_project__config_data__version_1(app, scratch, project_root, project_parse.parsed);
-                        }break;
-                    }
+    
+    // NOTE(allen): Parse config data out of project file
+    Project_Parse_Result project_parse = {};
+    if (dump.data.str != 0){
+        Token_Array array = token_array_from_text(app, scratch, dump.data);
+        if (array.tokens != 0){
+            project_parse.parsed = def_config_parse(app, scratch, dump.file_name, dump.data, array);
+            if (project_parse.parsed != 0){
+                i32 version = 0;
+                if (project_parse.parsed->version != 0){
+                    version = *project_parse.parsed->version;
+                }
+                switch (version){
+                    case 1:
+                    {
+                        project_parse.project = parse_project__config_data__version_1(app, scratch, project_root, project_parse.parsed);
+                    }break;
                 }
             }
-            
-        }
-        else{
-            List_String_Const_u8 list = {};
-            string_list_push(scratch, &list, string_u8_litexpr("Did not find project.4coder.  "));
-            if (current_project.loaded){
-                string_list_push(scratch, &list, string_u8_litexpr("Continuing with: "));
-                if (current_project.name.size > 0){
-                    string_list_push(scratch, &list, current_project.name);
-                }
-                else{
-                    string_list_push(scratch, &list, current_project.dir);
-                }
-            }
-            else{
-                string_list_push(scratch, &list, string_u8_litexpr("Continuing without a project."));
-            }
-            string_list_push(scratch, &list, string_u8_litexpr("\n"));
-            String_Const_u8 message = string_list_flatten(scratch, list);
-            print_message(app, message);
         }
     }
     
     
-    
-    b32 print_feedback = false;
-    
+    // NOTE(allen): Set current project
     if (project_parse.parsed != 0 && project_parse.project != 0){
         if (current_project_arena.base_allocator == 0){
             current_project_arena = make_arena_system();
@@ -853,8 +839,6 @@ CUSTOM_DOC("Looks for a project.4coder file in the current directory and tries t
         Project new_project = project_deep_copy(&current_project_arena, project_parse.project);
         if (new_project.loaded){
             current_project = new_project;
-            
-            print_feedback = true;
             
             // NOTE(allen): Set the normal search list's project slot
             def_search_project_path = current_project.dir;
@@ -900,9 +884,6 @@ CUSTOM_DOC("Looks for a project.4coder file in the current directory and tries t
 #undef M
         }
     }
-    else if (project_parse.parsed != 0){
-        print_feedback = true;
-    }
     
     if (project_parse.project != 0){
         Variable_Handle proj_var = {};
@@ -919,12 +900,13 @@ CUSTOM_DOC("Looks for a project.4coder file in the current directory and tries t
         print_message(app, string_u8_litexpr("\n"));
     }
     
-    if (print_feedback){
-        // NOTE(allen): errors
-        String_Const_u8 error_text = config_stringize_errors(app, scratch, project_parse.parsed);
+    // NOTE(allen): errors
+    if (project_parse.parsed != 0){
         if (project_parse.project == 0){
             print_message(app, string_u8_litexpr("Could not instantiate project\n"));
         }
+        
+        String_Const_u8 error_text = config_stringize_errors(app, scratch, project_parse.parsed);
         if (error_text.size > 0){
             print_message(app, string_u8_litexpr("Project errors:\n"));
             print_message(app, error_text);
