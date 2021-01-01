@@ -11,18 +11,34 @@ global Arena current_project_arena = {};
 
 ///////////////////////////////
 
-function Project_File_Pattern_Array
-get_pattern_array_from_string_array(Arena *arena, String_Const_u8_Array list){
-    Project_File_Pattern_Array array = {};
-    array.count = list.count;
-    array.patterns = push_array(arena, Project_File_Pattern, list.count);
+function Match_Pattern_List
+prj_pattern_list_from_extension_array(Arena *arena, String_Const_u8_Array list){
+    Match_Pattern_List result = {};
     for (i32 i = 0;
          i < list.count;
          ++i){
-        String_Const_u8 str = push_u8_stringf(arena, "*.%.*s", string_expand(list.strings[i]));
-        array.patterns[i].absolutes = string_split_wildcards(arena, str);
+        Match_Pattern_Node *node = push_array(arena, Match_Pattern_Node, 1);
+        sll_queue_push(result.first, result.last, node);
+        result.count += 1;
+        
+        String_Const_u8 str = push_stringf(arena, "*.%.*s", string_expand(list.vals[i]));
+        node->pattern.absolutes = string_split_wildcards(arena, str);
     }
-    return(array);
+    return(result);
+}
+
+function Match_Pattern_List
+prj_pattern_list_from_var(Arena *arena, Variable_Handle var){
+    Match_Pattern_List result = {};
+    for (Vars_Children(child_var, var)){
+        Match_Pattern_Node *node = push_array(arena, Match_Pattern_Node, 1);
+        sll_queue_push(result.first, result.last, node);
+        result.count += 1;
+        
+        String_Const_u8 str = vars_string_from_var(arena, child_var);
+        node->pattern.absolutes = string_split_wildcards(arena, str);
+    }
+    return(result);
 }
 
 ///////////////////////////////
@@ -76,11 +92,12 @@ close_all_files_with_extension(Application_Links *app, String_Const_u8_Array ext
 }
 
 function b32
-match_in_pattern_array(String_Const_u8 string, Project_File_Pattern_Array array){
+match_in_pattern_list(String_Const_u8 string, Match_Pattern_List list){
     b32 found_match = false;
-    Project_File_Pattern *pattern = array.patterns;
-    for (i32 i = 0; i < array.count; ++i, ++pattern){
-        if (string_wildcard_match(pattern->absolutes, string, StringMatch_Exact)){
+    for (Match_Pattern_Node *node = list.first;
+         node != 0;
+         node = node->next){
+        if (string_wildcard_match(node->pattern.absolutes, string, StringMatch_Exact)){
             found_match = true;
             break;
         }
@@ -90,9 +107,7 @@ match_in_pattern_array(String_Const_u8 string, Project_File_Pattern_Array array)
 
 function void
 open_files_pattern_match__recursive(Application_Links *app, String_Const_u8 path,
-                                    Project_File_Pattern_Array whitelist,
-                                    Project_File_Pattern_Array blacklist,
-                                    u32 flags){
+                                    Match_Pattern_List whitelist, Match_Pattern_List blacklist, u32 flags){
     Scratch_Block scratch(app);
     
     ProfileScopeNamed(app, "get file list", profile_get_file_list);
@@ -102,44 +117,42 @@ open_files_pattern_match__recursive(Application_Links *app, String_Const_u8 path
     File_Info **info = list.infos;
     for (u32 i = 0; i < list.count; ++i, ++info){
         String_Const_u8 file_name = (**info).file_name;
-        
         if (HasFlag((**info).attributes.flags, FileAttribute_IsDirectory)){
-            if ((flags & OpenAllFilesFlag_Recursive) == 0) continue;
-            if (match_in_pattern_array(file_name, blacklist)) continue;
-            
-            String_Const_u8 new_path = push_u8_stringf(scratch, "%.*s%.*s/",
-                                                       string_expand(path),
-                                                       string_expand(file_name));
+            if ((flags & OpenAllFilesFlag_Recursive) == 0){
+                continue;
+            }
+            if (match_in_pattern_list(file_name, blacklist)){
+                continue;
+            }
+            String_Const_u8 new_path = push_u8_stringf(scratch, "%.*s%.*s/", string_expand(path), string_expand(file_name));
             open_files_pattern_match__recursive(app, new_path, whitelist, blacklist, flags);
         }
         else{
-            if (!match_in_pattern_array(file_name, whitelist)){
+            if (!match_in_pattern_list(file_name, whitelist)){
                 continue;
             }
-            if (match_in_pattern_array(file_name, blacklist)){
+            if (match_in_pattern_list(file_name, blacklist)){
                 continue;
             }
-            
-            String_Const_u8 full_path = push_u8_stringf(scratch, "%.*s%.*s",
-                                                        string_expand(path),
-                                                        string_expand(file_name));
-            
+            String_Const_u8 full_path = push_u8_stringf(scratch, "%.*s%.*s", string_expand(path), string_expand(file_name));
             create_buffer(app, full_path, 0);
         }
     }
 }
 
-function Project_File_Pattern_Array
+// TODO(allen): dumb name
+function Match_Pattern_List
 get_standard_blacklist(Arena *arena){
     String_Const_u8 dot = string_u8_litexpr(".*");
     String_Const_u8_Array black_array = {};
     black_array.strings = &dot;
     black_array.count = 1;
-    return(get_pattern_array_from_string_array(arena, black_array));
+    return(prj_pattern_list_from_extension_array(arena, black_array));
 }
 
 function void
-open_files_pattern_match(Application_Links *app, String_Const_u8 dir, Project_File_Pattern_Array whitelist, Project_File_Pattern_Array blacklist, u32 flags){
+open_files_pattern_match(Application_Links *app, String_Const_u8 dir,
+                         Match_Pattern_List whitelist, Match_Pattern_List blacklist, u32 flags){
     ProfileScope(app, "open all files in directory pattern");
     Scratch_Block scratch(app);
     String_Const_u8 directory = dir;
@@ -152,8 +165,8 @@ open_files_pattern_match(Application_Links *app, String_Const_u8 dir, Project_Fi
 function void
 open_files_with_extension(Application_Links *app, String_Const_u8 dir, String_Const_u8_Array array, u32 flags){
     Scratch_Block scratch(app);
-    Project_File_Pattern_Array whitelist = get_pattern_array_from_string_array(scratch, array);
-    Project_File_Pattern_Array blacklist = get_standard_blacklist(scratch);
+    Match_Pattern_List whitelist = prj_pattern_list_from_extension_array(scratch, array);
+    Match_Pattern_List blacklist = get_standard_blacklist(scratch);
     open_files_pattern_match(app, dir, whitelist, blacklist, flags);
 }
 
@@ -171,20 +184,18 @@ open_all_files_in_hot_with_extension(Application_Links *app, String_Const_u8_Arr
 ///////////////////////////////
 
 function void
-parse_project__extract_pattern_array(Arena *arena, Config *parsed, char *root_variable_name, Project_File_Pattern_Array *array_out){
+parse_project__extract_pattern_list(Arena *arena, Config *parsed, char *root_variable_name, Match_Pattern_List *list_out){
     Config_Compound *compound = 0;
     if (config_compound_var(parsed, root_variable_name, 0, &compound)){
         Config_Get_Result_List list = typed_string_array_reference_list(arena, parsed, compound);
-        
-        array_out->patterns = push_array(arena, Project_File_Pattern, list.count);
-        array_out->count = list.count;
-        
-        i32 i = 0;
-        for (Config_Get_Result_Node *node = list.first;
-             node != 0;
-             node = node->next, i += 1){
-            String_Const_u8 str = push_string_copy(arena, node->result.string);
-            array_out->patterns[i].absolutes = string_split_wildcards(arena, str);
+        for (Config_Get_Result_Node *cfg_node = list.first;
+             cfg_node != 0;
+             cfg_node = cfg_node->next){
+            Match_Pattern_Node *node = push_array(arena, Match_Pattern_Node, 1);
+            sll_queue_push(list_out->first, list_out->last, node);
+            list_out->count += 1;
+            String_Const_u8 str = push_string_copy(arena, cfg_node->result.string);
+            node->pattern.absolutes = string_split_wildcards(arena, str);
         }
     }
 }
@@ -222,10 +233,10 @@ parse_project__config_data__version_1(Application_Links *app, Arena *arena, Stri
     }
     
     // patterns
-    parse_project__extract_pattern_array(arena, parsed, "patterns", &project->pattern_array);
+    parse_project__extract_pattern_list(arena, parsed, "patterns", &project->pattern_list);
     
     // blacklist_patterns
-    parse_project__extract_pattern_array(arena, parsed, "blacklist_patterns", &project->blacklist_pattern_array);
+    parse_project__extract_pattern_list(arena, parsed, "blacklist_patterns", &project->blacklist_pattern_list);
     
     // load_paths
     {
@@ -416,18 +427,19 @@ parse_project__config_data__version_1(Application_Links *app, Arena *arena, Stri
 }
 
 function void
-project_deep_copy__pattern_array(Arena *arena, Project_File_Pattern_Array *src_array, Project_File_Pattern_Array *dst_array){
-    i32 pattern_count = src_array->count;
-    dst_array->patterns = push_array(arena, Project_File_Pattern, pattern_count);
-    dst_array->count = pattern_count;
-    Project_File_Pattern *dst = dst_array->patterns;
-    Project_File_Pattern *src = src_array->patterns;
-    for (i32 i = 0; i < pattern_count; ++i, ++dst, ++src){
-        for (Node_String_Const_u8 *node = src->absolutes.first;
+project_deep_copy__pattern_list(Arena *arena, Match_Pattern_List *src_list, Match_Pattern_List *dst_list){
+    for (Match_Pattern_Node *src_node = src_list->first;
+         src_node != 0;
+         src_node = src_node->next){
+        Match_Pattern_Node *dst_node = push_array(arena, Match_Pattern_Node, 1);
+        sll_queue_push(dst_list->first, dst_list->last, dst_node);
+        dst_list->count += 1;
+        
+        for (Node_String_Const_u8 *node = src_node->pattern.absolutes.first;
              node != 0;
              node = node->next){
             String_Const_u8 string = push_string_copy(arena, node->string);
-            string_list_push(arena, &dst->absolutes, string);
+            string_list_push(arena, &dst_node->pattern.absolutes, string);
         }
     }
 }
@@ -437,8 +449,8 @@ project_deep_copy__inner(Arena *arena, Project *project){
     Project result = {};
     result.dir = push_string_copy(arena, project->dir);
     result.name = push_string_copy(arena, project->name);
-    project_deep_copy__pattern_array(arena, &project->pattern_array, &result.pattern_array);
-    project_deep_copy__pattern_array(arena, &project->blacklist_pattern_array, &result.blacklist_pattern_array);
+    project_deep_copy__pattern_list(arena, &project->pattern_list, &result.pattern_list);
+    project_deep_copy__pattern_list(arena, &project->blacklist_pattern_list, &result.blacklist_pattern_list);
     
     {
         i32 path_count = project->load_path_array.count;
@@ -587,21 +599,23 @@ prj_version_1_to_version_2(Application_Links *app, Config *parsed, Project *proj
     // load paterns
     struct PatternVars{
         String_ID id;
-        Project_File_Pattern_Array array;
+        Match_Pattern_List list;
     };
     PatternVars pattern_vars[] = {
-        {          patterns_id, project->          pattern_array},
-        {blacklist_patterns_id, project->blacklist_pattern_array},
+        {          patterns_id, project->          pattern_list},
+        {blacklist_patterns_id, project->blacklist_pattern_list},
     };
     
     PatternVars *pattern_var = pattern_vars;
     PatternVars *opl = pattern_vars + ArrayCount(pattern_vars);
     for (; pattern_var < opl; pattern_var += 1){
         Variable_Handle patterns = vars_new_variable(proj_var, pattern_var->id);
-        i32 count = pattern_var->array.count;
-        Project_File_Pattern *pattern = pattern_var->array.patterns;
-        for (i32 i = 0; i < count; i += 1, pattern += 1){
-            String_Const_u8 pattern_string = prj_join_pattern_string(scratch, pattern->absolutes);
+        
+        i32 i = 0;
+        for (Match_Pattern_Node *node = pattern_var->list.first;
+             node != 0;
+             node = node->next, i += 1){
+            String_Const_u8 pattern_string = prj_join_pattern_string(scratch, node->pattern.absolutes);
             String_ID key = vars_save_string(push_stringf(scratch, "%d", i));
             String_ID pattern_id = vars_save_string(pattern_string);
             vars_new_variable(patterns, key, pattern_id);
@@ -807,114 +821,111 @@ CUSTOM_DOC("Looks for a project.4coder file in the current directory and tries t
     }
     
     // NOTE(allen): Parse config data out of project file
-    Project_Parse_Result project_parse = {};
+    Config *config_parse = 0;
     Variable_Handle proj_var = vars_get_nil();
-    
     if (dump.data.str != 0){
         Token_Array array = token_array_from_text(app, scratch, dump.data);
         if (array.tokens != 0){
-            project_parse.parsed = def_config_parse(app, scratch, dump.file_name, dump.data, array);
-            if (project_parse.parsed != 0){
+            config_parse = def_config_parse(app, scratch, dump.file_name, dump.data, array);
+            if (config_parse != 0){
                 i32 version = 0;
-                if (project_parse.parsed->version != 0){
-                    version = *project_parse.parsed->version;
+                if (config_parse->version != 0){
+                    version = *config_parse->version;
                 }
+                
                 switch (version){
                     case 0:
-                    {
-                        proj_var = prj_version_1_to_version_2(app, project_parse.parsed, project_parse.project);
-                    }break;
-                    
                     case 1:
                     {
-                        project_parse.project = parse_project__config_data__version_1(app, scratch, project_root, project_parse.parsed);
-                        proj_var = prj_version_1_to_version_2(app, project_parse.parsed, project_parse.project);
+                        Project *project = parse_project__config_data__version_1(app, scratch, project_root, config_parse);
+                        proj_var = prj_version_1_to_version_2(app, config_parse, project);
                     }break;
-                    
                     default:
                     {
-                        proj_var = def_fill_var_from_config(app, vars_get_root(), vars_save_string_lit("prj_config"), project_parse.parsed);
+                        proj_var = def_fill_var_from_config(app, vars_get_root(), vars_save_string_lit("prj_config"), config_parse);
                     }break;
                 }
+                
             }
         }
     }
     
-    // NOTE(allen): Dump project
+    // NOTE(allen): Print Project
     if (!vars_is_nil(proj_var)){
         vars_print(app, proj_var);
         print_message(app, string_u8_litexpr("\n"));
     }
     
-    
-    // NOTE(allen): Set current project
-    if (project_parse.parsed != 0 && project_parse.project != 0){
-        if (current_project_arena.base_allocator == 0){
-            current_project_arena = make_arena_system();
-        }
-        
-        // Copy project to current_project
-        linalloc_clear(&current_project_arena);
-        Project new_project = project_deep_copy(&current_project_arena, project_parse.project);
-        if (new_project.loaded){
-            current_project = new_project;
-            
-            // NOTE(allen): Set the normal search list's project slot
-            def_search_project_path = current_project.dir;
-            
-            // Open all project files
-            for (i32 i = 0; i < current_project.load_path_array.count; ++i){
-                Project_File_Load_Path *load_path = &current_project.load_path_array.paths[i];
-                u32 flags = 0;
-                if (load_path->recursive){
-                    flags |= OpenAllFilesFlag_Recursive;
-                }
-                
-                Temp_Memory temp = begin_temp(scratch);
-                String_Const_u8 path_str = load_path->path;
-                String_Const_u8 file_dir = path_str;
-                if (load_path->relative){
-                    String_Const_u8 project_dir = current_project.dir;
-                    List_String_Const_u8 file_dir_list = {};
-                    string_list_push(scratch, &file_dir_list, project_dir);
-                    string_list_push_overlap(scratch, &file_dir_list, '/', path_str);
-                    string_list_push_overlap(scratch, &file_dir_list, '/', SCu8());
-                    file_dir = string_list_flatten(scratch, file_dir_list, StringFill_NullTerminate);
-                }
-                
-                Project_File_Pattern_Array whitelist = current_project.pattern_array;
-                Project_File_Pattern_Array blacklist = current_project.blacklist_pattern_array;
-                open_files_pattern_match(app, file_dir, whitelist, blacklist, flags);
-                end_temp(temp);
-            }
-            
-            // Set window title
-            if (project_parse.project->name.size > 0){
-                Temp_Memory temp = begin_temp(scratch);
-                String_Const_u8 builder = push_u8_stringf(scratch, "4coder project: %.*s", string_expand(project_parse.project->name));
-                set_window_title(app, builder);
-                end_temp(temp);
-            }
-        }
-        else{
-#define M "Failed to initialize new project; need more memory dedicated to the project system.\n"
-            print_message(app, string_u8_litexpr(M));
-#undef M
-        }
-    }
-    
-    // NOTE(allen): errors
-    if (project_parse.parsed != 0){
-        if (project_parse.project == 0){
-            print_message(app, string_u8_litexpr("Could not instantiate project\n"));
-        }
-        
-        String_Const_u8 error_text = config_stringize_errors(app, scratch, project_parse.parsed);
+    // NOTE(allen): Print Errors
+    if (config_parse != 0){
+        String_Const_u8 error_text = config_stringize_errors(app, scratch, config_parse);
         if (error_text.size > 0){
             print_message(app, string_u8_litexpr("Project errors:\n"));
             print_message(app, error_text);
             print_message(app, string_u8_litexpr("\n"));
         }
+    }
+    
+    // TODO(allen): this is dummy dumb dumb and don't need to be like this.
+    // NOTE(allen): Set the normal search list's project slot
+    String_Const_u8 project_dir = prj_path_from_project(scratch, proj_var);
+    
+    if (current_project_arena.base_allocator == 0){
+        current_project_arena = make_arena_system();
+    }
+    linalloc_clear(&current_project_arena);
+    def_search_project_path = push_string_copy(&current_project_arena, project_dir);
+    
+    // NOTE(allen): Open All Project Files
+    Variable_Handle load_paths_var = vars_read_key(proj_var, vars_save_string_lit("load_paths"));
+    Variable_Handle load_paths_os_var = vars_read_key(load_paths_var, vars_save_string_lit(OS_NAME));
+    
+    String_ID path_id = vars_save_string_lit("path");
+    String_ID recursive_id = vars_save_string_lit("recursive");
+    String_ID relative_id = vars_save_string_lit("relative");
+    
+    Variable_Handle whitelist_var = vars_read_key(proj_var, vars_save_string_lit("patterns"));
+    Variable_Handle blacklist_var = vars_read_key(proj_var, vars_save_string_lit("blacklist_patterns"));
+    
+    Match_Pattern_List whitelist = prj_pattern_list_from_var(scratch, whitelist_var);
+    Match_Pattern_List blacklist = prj_pattern_list_from_var(scratch, blacklist_var);
+    
+    for (Variable_Handle load_path_var = vars_first_child(load_paths_os_var);
+         !vars_is_nil(load_path_var);
+         load_path_var = vars_next_sibling(load_path_var)){
+        Variable_Handle path_var = vars_read_key(load_path_var, path_id);
+        Variable_Handle recursive_var = vars_read_key(load_path_var, recursive_id);
+        Variable_Handle relative_var = vars_read_key(load_path_var, relative_id);
+        
+        String_Const_u8 path = vars_string_from_var(scratch, path_var);
+        b32 recursive = vars_b32_from_var(recursive_var);
+        b32 relative = vars_b32_from_var(relative_var);
+        
+        
+        u32 flags = 0;
+        if (recursive){
+            flags |= OpenAllFilesFlag_Recursive;
+        }
+        
+        String_Const_u8 file_dir = path;
+        if (relative){
+            List_String_Const_u8 file_dir_list = {};
+            string_list_push(scratch, &file_dir_list, project_dir);
+            string_list_push_overlap(scratch, &file_dir_list, '/', path);
+            string_list_push_overlap(scratch, &file_dir_list, '/', SCu8());
+            file_dir = string_list_flatten(scratch, file_dir_list, StringFill_NullTerminate);
+        }
+        
+        open_files_pattern_match(app, file_dir, whitelist, blacklist, flags);
+    }
+    
+    // NOTE(allen): Set Window Title
+    Variable_Handle proj_name_var = vars_read_key(proj_var, vars_save_string_lit("project_name"));
+    String_ID proj_name_id = vars_key_id_from_var(proj_var);
+    if (proj_name_id != 0){
+        String_Const_u8 proj_name = vars_read_string(scratch, proj_name_id);
+        String_Const_u8 title = push_u8_stringf(scratch, "4coder project: %.*s", string_expand(proj_name));
+        set_window_title(app, title);
     }
 }
 

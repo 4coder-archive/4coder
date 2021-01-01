@@ -13,12 +13,18 @@ enum{
 
 ///////////////////////////////
 
-struct Project_File_Pattern{
+struct Match_Pattern{
     List_String_Const_u8 absolutes;
 };
 
-struct Project_File_Pattern_Array{
-    Project_File_Pattern *patterns;
+struct Match_Pattern_Node{
+    Match_Pattern_Node *next;
+    Match_Pattern pattern;
+};
+
+struct Match_Pattern_List{
+    Match_Pattern_Node *first;
+    Match_Pattern_Node *last;
     i32 count;
 };
 
@@ -53,8 +59,8 @@ struct Project{
     String_Const_u8 dir;
     String_Const_u8 name;
     
-    Project_File_Pattern_Array pattern_array;
-    Project_File_Pattern_Array blacklist_pattern_array;
+    Match_Pattern_List pattern_list;
+    Match_Pattern_List blacklist_pattern_list;
     Project_File_Load_Path_Array load_path_array;
     Project_Command_Array command_array;
     
@@ -67,11 +73,6 @@ enum{
     ProjectOSMatchLevel_NoMatch = 0,
     ProjectOSMatchLevel_PassiveMatch = 1,
     ProjectOSMatchLevel_ActiveMatch = 2,
-};
-
-struct Project_Parse_Result{
-    Config *parsed;
-    Project *project;
 };
 
 ///////////////////////////////

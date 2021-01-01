@@ -28,6 +28,11 @@ struct Variable_Handle{
 ////////////////////////////////
 // NOTE(allen): Functions
 
+// TODO(allen): fix names fuck you for picking these allen:
+// read_string
+// read_keyu
+// save_string
+
 function String_ID       vars_save_string(String_Const_u8 string);
 #define vars_save_string_lit(S) vars_save_string(string_u8_litexpr(S))
 function String_Const_u8 vars_read_string(Arena *arena, String_ID id);
@@ -41,6 +46,8 @@ function b32             vars_match(Variable_Handle a, Variable_Handle b);
 function Variable_Handle vars_first_child(Variable_Handle var);
 function Variable_Handle vars_next_sibling(Variable_Handle var);
 function Variable_Handle vars_parent(Variable_Handle var);
+
+#define Vars_Children(it, par) Variable_Handle it = vars_first_child(par); !vars_is_nil(it); it = vars_next_sibling(it)
 
 function Variable_Handle vars_read_key(Variable_Handle var, String_ID key);
 function String_ID       vars_key_id_from_var(Variable_Handle var);
