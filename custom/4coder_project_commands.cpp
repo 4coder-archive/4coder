@@ -577,6 +577,7 @@ prj_version_1_to_version_2(Application_Links *app, Config *parsed, Project *proj
     String_ID relative_id = vars_save_string(str8_lit("relative"));
     String_ID true_id = vars_save_string(str8_lit("true"));
     String_ID false_id = vars_save_string(str8_lit("false"));
+    String_ID commands_id = vars_save_string(str8_lit("commands"));
     
     String_ID out_id = vars_save_string(str8_lit("out"));
     String_ID footer_panel_id = vars_save_string(str8_lit("footer_panel"));
@@ -596,7 +597,7 @@ prj_version_1_to_version_2(Application_Links *app, Config *parsed, Project *proj
     
     vars_new_variable(proj_var, project_name_id, vars_save_string(project->name));
     
-    // load paterns
+    // NOTE(allen): Load Pattern
     struct PatternVars{
         String_ID id;
         Match_Pattern_List list;
@@ -622,7 +623,7 @@ prj_version_1_to_version_2(Application_Links *app, Config *parsed, Project *proj
         }
     }
     
-    // load paths
+    // NOTE(allen): Load Paths
     {
         Variable_Handle load_paths = vars_new_variable(proj_var, load_paths_id);
         Variable_Handle os_var = vars_new_variable(load_paths, os_id);
@@ -637,13 +638,14 @@ prj_version_1_to_version_2(Application_Links *app, Config *parsed, Project *proj
         }
     }
     
-    // commands
+    // NOTE(allen): Commands
     {
+        Variable_Handle cmd_list_var = vars_new_variable(proj_var, commands_id);
         i32 count = project->command_array.count;
         Project_Command *cmd = project->command_array.commands;
         for (i32 i = 0; i < count; i += 1, cmd += 1){
             String_Const_u8 cmd_name = prj_sanitize_string(scratch, cmd->name);
-            Variable_Handle cmd_var = vars_new_variable(proj_var, vars_save_string(cmd_name));
+            Variable_Handle cmd_var = vars_new_variable(cmd_list_var, vars_save_string(cmd_name));
             vars_new_variable(cmd_var, os_id, vars_save_string(cmd->cmd));
             vars_new_variable(cmd_var, out_id, vars_save_string(cmd->out));
             vars_new_variable(cmd_var, footer_panel_id, cmd->footer_panel?true_id:false_id);
@@ -652,7 +654,7 @@ prj_version_1_to_version_2(Application_Links *app, Config *parsed, Project *proj
         }
     }
     
-    // fkey_commands
+    // NOTE(allen): FKey Commands
     {
         Variable_Handle fkeys_var = vars_new_variable(proj_var, fkey_command_id);
         for (i32 i = 0; i < 16; i += 1){
@@ -669,7 +671,7 @@ prj_version_1_to_version_2(Application_Links *app, Config *parsed, Project *proj
         }
     }
     
-	return(proj_var);
+    return(proj_var);
 }
 
 function String_Const_u8
@@ -733,9 +735,10 @@ prj_exec_command(Application_Links *app, Variable_Handle cmd_var){
             buffer_id = buffer_identifier(string_u8_litexpr("*dump*"));
         }
         
-        Variable_Handle parent = vars_parent(cmd_var);
-        String_Const_u8 project_dir = prj_path_from_project(scratch, parent);
-        exec_system_command(app, view, buffer_id, project_dir, cmd, flags);
+        Variable_Handle command_list_var = vars_parent(cmd_var);
+        Variable_Handle prj_var = vars_parent(command_list_var);
+        String_Const_u8 prj_dir = prj_path_from_project(scratch, prj_var);
+        exec_system_command(app, view, buffer_id, prj_dir, cmd, flags);
         if (set_fancy_font){
             set_fancy_compilation_buffer_font(app);
         }
@@ -745,8 +748,9 @@ prj_exec_command(Application_Links *app, Variable_Handle cmd_var){
 function Variable_Handle
 prj_command_from_name(Application_Links *app, String_Const_u8 cmd_name){
     Scratch_Block scratch(app);
-    String_ID cmd_name_id = vars_save_string(cmd_name);
-    Variable_Handle cmd = def_get_config_var(cmd_name_id);
+    // TODO(allen): fallback for multiple stages of reading
+    Variable_Handle cmd_list = def_get_config_var(vars_save_string_lit("commands"));
+    Variable_Handle cmd = vars_read_key(cmd_list, vars_save_string(cmd_name));
     return(cmd);
 }
 
@@ -961,7 +965,9 @@ CUSTOM_DOC("Changes 4coder's hot directory to the root directory of the currentl
     Scratch_Block scratch(app);
     Variable_Handle prj_var = vars_read_key(vars_get_root(), vars_save_string_lit("prj_config"));
     String_Const_u8 prj_dir = prj_path_from_project(scratch, prj_var);
-    set_hot_directory(app, prj_dir);
+    if (prj_dir.size > 0){
+        set_hot_directory(app, prj_dir);
+    }
 }
 
 ///////////////////////////////
@@ -1319,6 +1325,38 @@ CUSTOM_DOC("Queries the user for several configuration options and initializes a
 ///////////////////////////////
 
 function Variable_Handle
+prj_cmd_from_user(Application_Links *app, Variable_Handle prj_var, String_Const_u8 query){
+    Scratch_Block scratch(app);
+    Lister_Block lister(app, scratch);
+    lister_set_query(lister, query);
+    lister_set_default_handlers(lister);
+    
+    Variable_Handle cmd_list_var = vars_read_key(prj_var, vars_save_string_lit("commands"));
+    String_ID os_id = vars_save_string_lit(OS_NAME);
+    
+    for (Variable_Handle cmd = vars_first_child(cmd_list_var);
+         !vars_is_nil(cmd);
+         cmd = vars_next_sibling(cmd)){
+        Variable_Handle os_cmd = vars_read_key(cmd, os_id);
+        if (!vars_is_nil(os_cmd)){
+            String_Const_u8 cmd_name = vars_key_from_var(scratch, cmd);
+            String_Const_u8 os_cmd_str = vars_string_from_var(scratch, os_cmd);
+            lister_add_item(lister, cmd_name, os_cmd_str, cmd.ptr, 0);
+        }
+    }
+    
+    Variable_Handle result = vars_get_nil();
+    Lister_Result l_result = run_lister(app, lister);
+    if (!l_result.canceled){
+        if (l_result.user_data != 0){
+            result.ptr = (Variable*)l_result.user_data;
+        }
+    }
+    
+    return(result);
+}
+
+function Variable_Handle
 get_project_command_from_user(Application_Links *app, Project *project, String_Const_u8 query){
     Variable_Handle result = vars_get_nil();
     if (project != 0){
@@ -1349,13 +1387,12 @@ get_project_command_from_user(Application_Links *app, Project *project, String_C
 CUSTOM_COMMAND_SIG(project_command_lister)
 CUSTOM_DOC("Open a lister of all commands in the currently loaded project.")
 {
-    if (current_project.loaded){
-        Variable_Handle proj_cmd =
-            get_project_command_from_user(app, &current_project, string_u8_litexpr("Command:"));
-        if (!vars_is_nil(proj_cmd)){
-            prj_exec_command(app, proj_cmd);
-        }
+    Variable_Handle prj_var = vars_read_key(vars_get_root(), vars_save_string_lit("prj_config"));
+    Variable_Handle prj_cmd = prj_cmd_from_user(app, prj_var, string_u8_litexpr("Command:"));
+    if (!vars_is_nil(prj_cmd)){
+        prj_exec_command(app, prj_cmd);
     }
+    
 }
 
 // BOTTOM
