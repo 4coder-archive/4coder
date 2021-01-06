@@ -958,9 +958,10 @@ CUSTOM_DOC("Run an 'fkey command' configured in a project.4coder file.  Determin
 CUSTOM_COMMAND_SIG(project_go_to_root_directory)
 CUSTOM_DOC("Changes 4coder's hot directory to the root directory of the currently loaded project. With no loaded project nothing hapepns.")
 {
-    if (current_project.loaded){
-        set_hot_directory(app, current_project.dir);
-    }
+    Scratch_Block scratch(app);
+    Variable_Handle prj_var = vars_read_key(vars_get_root(), vars_save_string_lit("prj_config"));
+    String_Const_u8 prj_dir = prj_path_from_project(scratch, prj_var);
+    set_hot_directory(app, prj_dir);
 }
 
 ///////////////////////////////

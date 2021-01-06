@@ -696,6 +696,7 @@ def_var_dump_rvalue(Application_Links *app, Config *config, Variable_Handle dst,
 function Variable_Handle
 def_fill_var_from_config(Application_Links *app, Variable_Handle parent, String_ID key, Config *config){
     Variable_Handle result = vars_get_nil();
+    
     if (key != 0){
         String_ID file_name_id = vars_save_string(config->file_name);
         result = vars_new_variable(parent, key, file_name_id);
@@ -730,8 +731,8 @@ def_fill_var_from_config(Application_Links *app, Variable_Handle parent, String_
                 }
             }
         }
-        
     }
+    
     return(result);
 }
 
