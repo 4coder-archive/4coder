@@ -7,8 +7,6 @@
 #if !defined(FCODER_CONFIG_H)
 #define FCODER_CONFIG_H
 
-#include <stdio.h>
-
 ////////////////////////////////
 // NOTE(allen): Config Parser Types
 
@@ -173,6 +171,12 @@ struct Config_Get_Result_List{
     Config_Get_Result_Node *last;
     i32 count;
 };
+
+////////////////////////////////
+// NOTE(allen): Config Search List
+
+function String_Const_u8 def_search_get_full_path(Arena *arena, List_String_Const_u8 *list, String_Const_u8 file_name);
+function FILE *def_search_normal_fopen(Arena *arena, char *file_name, char *opt);
 
 ////////////////////////////////
 // NOTE(allen): Config Parser Functions

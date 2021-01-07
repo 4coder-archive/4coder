@@ -10,6 +10,8 @@
 
 // TOP
 
+#include <stdio.h>
+
 #define FPS 60
 #define frame_useconds (Million(1) / FPS)
 #define frame_nseconds (Billion(1) / FPS)
@@ -191,14 +193,14 @@ struct Linux_Vars {
     String_Const_u8 clipboard_contents;
     b32 received_new_clipboard;
     b32 clipboard_catch_all;
-
+    
     pthread_mutex_t audio_mutex;
     pthread_cond_t audio_cond;
     void* audio_ctx;
     Audio_Mix_Sources_Function* audio_src_func;
     Audio_Mix_Destination_Function* audio_dst_func;
     System_Thread audio_thread;
-
+    
     Atom atom_TARGETS;
     Atom atom_CLIPBOARD;
     Atom atom_UTF8_STRING;
@@ -582,25 +584,25 @@ graphics_fill_texture_sig(){
 
 internal Face*
 font_make_face(Arena* arena, Face_Description* description, f32 scale_factor) {
-
+    
     Face_Description local_description = *description;
     String_Const_u8* name = &local_description.font.file_name;
-
+    
     // if description->font.file_name is a relative path, prepend the font directory.
     if(string_get_character(*name, 0) != '/') {
         String_Const_u8 binary = system_get_path(arena, SystemPath_Binary);
         *name = push_u8_stringf(arena, "%.*sfonts/%.*s", string_expand(binary), string_expand(*name));
     }
-
+    
     Face* result = ft__font_make_face(arena, &local_description, scale_factor);
-
+    
     if(!result) {
         // is this fatal? 4ed.cpp:277 (caller) does not check for null.
         char msg[4096];
         snprintf(msg, sizeof(msg), "Unable to load font: %.*s", string_expand(*name));
         system_error_box(msg);
     }
-
+    
     return(result);
 }
 
@@ -1740,7 +1742,7 @@ main(int argc, char **argv){
     pthread_mutexattr_init(&attr);
     pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
     pthread_mutex_init(&linuxvars.memory_tracker_mutex, &attr);
-
+    
     pthread_mutex_init(&linuxvars.audio_mutex, &attr);
     pthread_cond_init(&linuxvars.audio_cond, NULL);
     
@@ -1786,7 +1788,7 @@ main(int argc, char **argv){
         List_String_Const_u8 search_list = {};
         def_search_list_add_system_path(scratch, &search_list, SystemPath_Binary);
         
-        String_Const_u8 core_path = def_get_full_path(scratch, &search_list, SCu8("4ed_app.so"));
+        String_Const_u8 core_path = def_search_get_full_path(scratch, &search_list, SCu8("4ed_app.so"));
         if (system_load_library(scratch, core_path, &core_library)){
             get_funcs = (App_Get_Functions*)system_get_proc(core_library, "app_get_functions");
             if (get_funcs != 0){
@@ -1861,7 +1863,7 @@ main(int argc, char **argv){
         }
         String_Const_u8 custom_file_name = {};
         for (i32 i = 0; i < custom_file_count; i += 1){
-            custom_file_name = def_get_full_path(scratch, &search_list, custom_file_names[i]);
+            custom_file_name = def_search_get_full_path(scratch, &search_list, custom_file_names[i]);
             if (custom_file_name.size > 0){
                 break;
             }
@@ -1892,9 +1894,9 @@ main(int argc, char **argv){
     linux_x11_init(argc, argv, &plat_settings);
     linux_keycode_init(linuxvars.dpy);
     linux_epoll_init();
-
+    
     linuxvars.audio_thread = system_thread_launch(&linux_audio_main, NULL);
-
+    
     
     // app init
     {

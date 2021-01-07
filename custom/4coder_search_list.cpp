@@ -24,19 +24,11 @@ def_search_list_add_system_path(Arena *arena, List_String_Const_u8 *list, System
     string_list_push(arena, list, path_string);
 }
 
-function void
-def_search_normal_load_list(Arena *arena, List_String_Const_u8 *list){
-    if (def_search_project_path.size > 0){
-        def_search_list_add_path(arena, list, def_search_project_path);
-    }
-    def_search_list_add_system_path(arena, list, SystemPath_Binary);
-}
-
 ////////////////////////////////
 // NOTE(allen): Search List Functions
 
 function String_Const_u8
-def_get_full_path(Arena *arena, List_String_Const_u8 *list, String_Const_u8 relative){
+def_search_get_full_path(Arena *arena, List_String_Const_u8 *list, String_Const_u8 relative){
     String_Const_u8 result = {};
     
     Temp_Memory temp = begin_temp(arena);
@@ -69,20 +61,11 @@ def_get_full_path(Arena *arena, List_String_Const_u8 *list, String_Const_u8 rela
 function FILE*
 def_search_fopen(Arena *arena, List_String_Const_u8 *list, char *file_name, char *opt){
     Temp_Memory_Block block(arena);
-    String_Const_u8 full_path = def_get_full_path(arena, list, SCu8(file_name));
+    String_Const_u8 full_path = def_search_get_full_path(arena, list, SCu8(file_name));
     FILE *file = 0;
     if (full_path.size > 0){
         file = fopen((char*)full_path.str, opt);
     }
-    return(file);
-}
-
-function FILE*
-def_search_normal_fopen(Arena *arena, char *file_name, char *opt){
-    Temp_Memory_Block block(arena);
-    List_String_Const_u8 list = {};
-    def_search_normal_load_list(arena, &list);
-    FILE *file = def_search_fopen(arena, &list, file_name, opt);
     return(file);
 }
 

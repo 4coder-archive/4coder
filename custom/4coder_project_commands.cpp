@@ -4,13 +4,6 @@
 
 // TOP
 
-#if 1
-global Project current_project = {};
-global Arena current_project_arena = {};
-#endif
-
-///////////////////////////////
-
 function Match_Pattern_List
 prj_pattern_list_from_extension_array(Arena *arena, String_Const_u8_Array list){
     Match_Pattern_List result = {};
@@ -41,10 +34,31 @@ prj_pattern_list_from_var(Arena *arena, Variable_Handle var){
     return(result);
 }
 
-///////////////////////////////
+function Match_Pattern_List
+prj_get_standard_blacklist(Arena *arena){
+    String_Const_u8 dot = string_u8_litexpr(".*");
+    String_Const_u8_Array black_array = {};
+    black_array.strings = &dot;
+    black_array.count = 1;
+    return(prj_pattern_list_from_extension_array(arena, black_array));
+}
+
+function b32
+prj_match_in_pattern_list(String_Const_u8 string, Match_Pattern_List list){
+    b32 found_match = false;
+    for (Match_Pattern_Node *node = list.first;
+         node != 0;
+         node = node->next){
+        if (string_wildcard_match(node->pattern.absolutes, string, StringMatch_Exact)){
+            found_match = true;
+            break;
+        }
+    }
+    return(found_match);
+}
 
 function void
-close_all_files_with_extension(Application_Links *app, String_Const_u8_Array extension_array){
+prj_close_files_with_ext(Application_Links *app, String_Const_u8_Array extension_array){
     Scratch_Block scratch(app);
     
     i32 buffers_to_close_max = Thousand(100);
@@ -91,23 +105,17 @@ close_all_files_with_extension(Application_Links *app, String_Const_u8_Array ext
     }while(do_repeat);
 }
 
-function b32
-match_in_pattern_list(String_Const_u8 string, Match_Pattern_List list){
-    b32 found_match = false;
-    for (Match_Pattern_Node *node = list.first;
-         node != 0;
-         node = node->next){
-        if (string_wildcard_match(node->pattern.absolutes, string, StringMatch_Exact)){
-            found_match = true;
-            break;
-        }
-    }
-    return(found_match);
+function void
+prj_open_files_with_ext(Application_Links *app, String_Const_u8 dir, String_Const_u8_Array array, u32 flags){
+    Scratch_Block scratch(app);
+    Match_Pattern_List whitelist = prj_pattern_list_from_extension_array(scratch, array);
+    Match_Pattern_List blacklist = prj_get_standard_blacklist(scratch);
+    prj_open_files_pattern_filter(app, dir, whitelist, blacklist, flags);
 }
 
 function void
-open_files_pattern_match__recursive(Application_Links *app, String_Const_u8 path,
-                                    Match_Pattern_List whitelist, Match_Pattern_List blacklist, u32 flags){
+prj_open_files_pattern_filter__rec(Application_Links *app, String_Const_u8 path,
+                                   Match_Pattern_List whitelist, Match_Pattern_List blacklist, u32 flags){
     Scratch_Block scratch(app);
     
     ProfileScopeNamed(app, "get file list", profile_get_file_list);
@@ -121,17 +129,17 @@ open_files_pattern_match__recursive(Application_Links *app, String_Const_u8 path
             if ((flags & OpenAllFilesFlag_Recursive) == 0){
                 continue;
             }
-            if (match_in_pattern_list(file_name, blacklist)){
+            if (prj_match_in_pattern_list(file_name, blacklist)){
                 continue;
             }
             String_Const_u8 new_path = push_u8_stringf(scratch, "%.*s%.*s/", string_expand(path), string_expand(file_name));
-            open_files_pattern_match__recursive(app, new_path, whitelist, blacklist, flags);
+            prj_open_files_pattern_filter__rec(app, new_path, whitelist, blacklist, flags);
         }
         else{
-            if (!match_in_pattern_list(file_name, whitelist)){
+            if (!prj_match_in_pattern_list(file_name, whitelist)){
                 continue;
             }
-            if (match_in_pattern_list(file_name, blacklist)){
+            if (prj_match_in_pattern_list(file_name, blacklist)){
                 continue;
             }
             String_Const_u8 full_path = push_u8_stringf(scratch, "%.*s%.*s", string_expand(path), string_expand(file_name));
@@ -140,51 +148,32 @@ open_files_pattern_match__recursive(Application_Links *app, String_Const_u8 path
     }
 }
 
-// TODO(allen): dumb name
-function Match_Pattern_List
-get_standard_blacklist(Arena *arena){
-    String_Const_u8 dot = string_u8_litexpr(".*");
-    String_Const_u8_Array black_array = {};
-    black_array.strings = &dot;
-    black_array.count = 1;
-    return(prj_pattern_list_from_extension_array(arena, black_array));
-}
-
 function void
-open_files_pattern_match(Application_Links *app, String_Const_u8 dir,
-                         Match_Pattern_List whitelist, Match_Pattern_List blacklist, u32 flags){
+prj_open_files_pattern_filter(Application_Links *app, String_Const_u8 dir, Match_Pattern_List whitelist, Match_Pattern_List blacklist, u32 flags){
     ProfileScope(app, "open all files in directory pattern");
     Scratch_Block scratch(app);
     String_Const_u8 directory = dir;
     if (!character_is_slash(string_get_character(directory, directory.size - 1))){
         directory = push_u8_stringf(scratch, "%.*s/", string_expand(dir));
     }
-    open_files_pattern_match__recursive(app, directory, whitelist, blacklist, flags);
+    prj_open_files_pattern_filter__rec(app, directory, whitelist, blacklist, flags);
 }
 
 function void
-open_files_with_extension(Application_Links *app, String_Const_u8 dir, String_Const_u8_Array array, u32 flags){
-    Scratch_Block scratch(app);
-    Match_Pattern_List whitelist = prj_pattern_list_from_extension_array(scratch, array);
-    Match_Pattern_List blacklist = get_standard_blacklist(scratch);
-    open_files_pattern_match(app, dir, whitelist, blacklist, flags);
-}
-
-function void
-open_all_files_in_hot_with_extension(Application_Links *app, String_Const_u8_Array array, u32 flags){
+prj_open_all_files_with_ext_in_hot(Application_Links *app, String_Const_u8_Array array, u32 flags){
     Scratch_Block scratch(app);
     String_Const_u8 hot = push_hot_directory(app, scratch);
     String_Const_u8 directory = hot;
     if (!character_is_slash(string_get_character(hot, hot.size - 1))){
         directory = push_u8_stringf(scratch, "%.*s/", string_expand(hot));
     }
-    open_files_with_extension(app, hot, array, flags);
+    prj_open_files_with_ext(app, hot, array, flags);
 }
 
 ///////////////////////////////
 
 function void
-parse_project__extract_pattern_list(Arena *arena, Config *parsed, char *root_variable_name, Match_Pattern_List *list_out){
+prj_parse_pattern_list(Arena *arena, Config *parsed, char *root_variable_name, Match_Pattern_List *list_out){
     Config_Compound *compound = 0;
     if (config_compound_var(parsed, root_variable_name, 0, &compound)){
         Config_Get_Result_List list = typed_string_array_reference_list(arena, parsed, compound);
@@ -201,21 +190,22 @@ parse_project__extract_pattern_list(Arena *arena, Config *parsed, char *root_var
 }
 
 function Project_OS_Match_Level
-parse_project__version_1__os_match(String_Const_u8 str, String_Const_u8 this_os_str){
+prj_parse_v1_os_match(String_Const_u8 str, String_Const_u8 this_os_str){
+    Project_OS_Match_Level result = ProjectOSMatchLevel_NoMatch;
     if (string_match(str, this_os_str)){
-        return(ProjectOSMatchLevel_ActiveMatch);
+        result = ProjectOSMatchLevel_ActiveMatch;
     }
     else if (string_match(str, string_u8_litexpr("all"))){
-        return(ProjectOSMatchLevel_ActiveMatch);
+        result = ProjectOSMatchLevel_ActiveMatch;
     }
     else if (string_match(str, string_u8_litexpr("default"))){
-        return(ProjectOSMatchLevel_PassiveMatch);
+        result = ProjectOSMatchLevel_PassiveMatch;
     }
-    return(ProjectOSMatchLevel_NoMatch);
+    return(result);
 }
 
 function Project*
-parse_project__config_data__version_1(Application_Links *app, Arena *arena, String_Const_u8 root_dir, Config *parsed){
+prj_parse_from_v1_config_data(Application_Links *app, Arena *arena, String_Const_u8 root_dir, Config *parsed){
     Project *project = push_array_zero(arena, Project, 1);
     
     // Set new project directory
@@ -233,10 +223,10 @@ parse_project__config_data__version_1(Application_Links *app, Arena *arena, Stri
     }
     
     // patterns
-    parse_project__extract_pattern_list(arena, parsed, "patterns", &project->pattern_list);
+    prj_parse_pattern_list(arena, parsed, "patterns", &project->pattern_list);
     
     // blacklist_patterns
-    parse_project__extract_pattern_list(arena, parsed, "blacklist_patterns", &project->blacklist_pattern_list);
+    prj_parse_pattern_list(arena, parsed, "blacklist_patterns", &project->blacklist_pattern_list);
     
     // load_paths
     {
@@ -259,7 +249,7 @@ parse_project__config_data__version_1(Application_Links *app, Arena *arena, Stri
                 if (config_compound_compound_member(parsed, paths_option, "paths", 0, &paths)){
                     String_Const_u8 str = {};
                     if (config_compound_string_member(parsed, paths_option, "os", 1, &str)){
-                        Project_OS_Match_Level r = parse_project__version_1__os_match(str, string_u8_litexpr(OS_NAME));
+                        Project_OS_Match_Level r = prj_parse_v1_os_match(str, string_u8_litexpr(OS_NAME));
                         if (r == ProjectOSMatchLevel_ActiveMatch){
                             found_match = true;
                             best_paths = paths;
@@ -363,7 +353,7 @@ parse_project__config_data__version_1(Application_Links *app, Arena *arena, Stri
                     if (config_compound_string_member(parsed, cmd_option, "cmd", 0, &cmd)){
                         String_Const_u8 str = {};
                         if (config_compound_string_member(parsed, cmd_option, "os", 1, &str)){
-                            Project_OS_Match_Level r = parse_project__version_1__os_match(str, string_u8_litexpr(OS_NAME));
+                            Project_OS_Match_Level r = prj_parse_v1_os_match(str, string_u8_litexpr(OS_NAME));
                             if (r == ProjectOSMatchLevel_ActiveMatch){
                                 can_emit_command = true;
                                 cmd_str = cmd;
@@ -785,7 +775,7 @@ CUSTOM_DOC("Closes any buffer with a filename ending with an extension configure
     Scratch_Block scratch(app);
     String_Const_u8 treat_as_code = def_get_config_string(scratch, vars_save_string_lit("treat_as_code"));
     String_Const_u8_Array extensions = parse_extension_line_to_extension_list(app, scratch, treat_as_code);
-    close_all_files_with_extension(app, extensions);
+    prj_close_files_with_ext(app, extensions);
 }
 
 CUSTOM_COMMAND_SIG(open_all_code)
@@ -794,7 +784,7 @@ CUSTOM_DOC("Open all code in the current directory. File types are determined by
     Scratch_Block scratch(app);
     String_Const_u8 treat_as_code = def_get_config_string(scratch, vars_save_string_lit("treat_as_code"));
     String_Const_u8_Array extensions = parse_extension_line_to_extension_list(app, scratch, treat_as_code);
-    open_all_files_in_hot_with_extension(app, extensions, 0);
+    prj_open_all_files_with_ext_in_hot(app, extensions, 0);
 }
 
 CUSTOM_COMMAND_SIG(open_all_code_recursive)
@@ -803,7 +793,7 @@ CUSTOM_DOC("Works as open_all_code but also runs in all subdirectories.")
     Scratch_Block scratch(app);
     String_Const_u8 treat_as_code = def_get_config_string(scratch, vars_save_string_lit("treat_as_code"));
     String_Const_u8_Array extensions = parse_extension_line_to_extension_list(app, scratch, treat_as_code);
-    open_all_files_in_hot_with_extension(app, extensions, OpenAllFilesFlag_Recursive);
+    prj_open_all_files_with_ext_in_hot(app, extensions, OpenAllFilesFlag_Recursive);
 }
 
 ///////////////////////////////
@@ -841,7 +831,7 @@ CUSTOM_DOC("Looks for a project.4coder file in the current directory and tries t
                     case 0:
                     case 1:
                     {
-                        Project *project = parse_project__config_data__version_1(app, scratch, project_root, config_parse);
+                        Project *project = prj_parse_from_v1_config_data(app, scratch, project_root, config_parse);
                         proj_var = prj_version_1_to_version_2(app, config_parse, project);
                     }break;
                     default:
@@ -869,16 +859,6 @@ CUSTOM_DOC("Looks for a project.4coder file in the current directory and tries t
             print_message(app, string_u8_litexpr("\n"));
         }
     }
-    
-    // TODO(allen): this is dummy dumb dumb and don't need to be like this.
-    // NOTE(allen): Set the normal search list's project slot
-    String_Const_u8 project_dir = prj_path_from_project(scratch, proj_var);
-    
-    if (current_project_arena.base_allocator == 0){
-        current_project_arena = make_arena_system();
-    }
-    linalloc_clear(&current_project_arena);
-    def_search_project_path = push_string_copy(&current_project_arena, project_dir);
     
     // NOTE(allen): Open All Project Files
     Variable_Handle load_paths_var = vars_read_key(proj_var, vars_save_string_lit("load_paths"));
@@ -913,14 +893,16 @@ CUSTOM_DOC("Looks for a project.4coder file in the current directory and tries t
         
         String_Const_u8 file_dir = path;
         if (relative){
+            String_Const_u8 prj_dir = prj_path_from_project(scratch, proj_var);
+            
             List_String_Const_u8 file_dir_list = {};
-            string_list_push(scratch, &file_dir_list, project_dir);
+            string_list_push(scratch, &file_dir_list, prj_dir);
             string_list_push_overlap(scratch, &file_dir_list, '/', path);
             string_list_push_overlap(scratch, &file_dir_list, '/', SCu8());
             file_dir = string_list_flatten(scratch, file_dir_list, StringFill_NullTerminate);
         }
         
-        open_files_pattern_match(app, file_dir, whitelist, blacklist, flags);
+        prj_open_files_pattern_filter(app, file_dir, whitelist, blacklist, flags);
     }
     
     // NOTE(allen): Set Window Title

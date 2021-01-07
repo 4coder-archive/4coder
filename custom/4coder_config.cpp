@@ -5,6 +5,28 @@
 // TOP
 
 ////////////////////////////////
+// NOTE(allen): Config Search List
+
+function void
+def_search_normal_load_list(Arena *arena, List_String_Const_u8 *list){
+    Variable_Handle prj_var = vars_read_key(vars_get_root(), vars_save_string_lit("prj_config"));
+    String_Const_u8 prj_dir = prj_path_from_project(arena, prj_var);
+    if (prj_dir.size > 0){
+        string_list_push(arena, list, prj_dir);
+    }
+    def_search_list_add_system_path(arena, list, SystemPath_Binary);
+}
+
+function FILE*
+def_search_normal_fopen(Arena *arena, char *file_name, char *opt){
+    Temp_Memory_Block block(arena);
+    List_String_Const_u8 list = {};
+    def_search_normal_load_list(arena, &list);
+    FILE *file = def_search_fopen(arena, &list, file_name, opt);
+    return(file);
+}
+
+////////////////////////////////
 // NOTE(allen): Extension List
 
 function String_Const_u8_Array
