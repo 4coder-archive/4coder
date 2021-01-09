@@ -7,13 +7,13 @@
 ////////////////////////////////
 // NOTE(allen): File Pattern Operators
 
-function Match_Pattern_List
+function Prj_Pattern_List
 prj_pattern_list_from_extension_array(Arena *arena, String8Array list){
-    Match_Pattern_List result = {};
+    Prj_Pattern_List result = {};
     for (i32 i = 0;
          i < list.count;
          ++i){
-        Match_Pattern_Node *node = push_array(arena, Match_Pattern_Node, 1);
+        Prj_Pattern_Node *node = push_array(arena, Prj_Pattern_Node, 1);
         sll_queue_push(result.first, result.last, node);
         result.count += 1;
         
@@ -23,11 +23,11 @@ prj_pattern_list_from_extension_array(Arena *arena, String8Array list){
     return(result);
 }
 
-function Match_Pattern_List
+function Prj_Pattern_List
 prj_pattern_list_from_var(Arena *arena, Variable_Handle var){
-    Match_Pattern_List result = {};
+    Prj_Pattern_List result = {};
     for (Vars_Children(child_var, var)){
-        Match_Pattern_Node *node = push_array(arena, Match_Pattern_Node, 1);
+        Prj_Pattern_Node *node = push_array(arena, Prj_Pattern_Node, 1);
         sll_queue_push(result.first, result.last, node);
         result.count += 1;
         
@@ -37,7 +37,7 @@ prj_pattern_list_from_var(Arena *arena, Variable_Handle var){
     return(result);
 }
 
-function Match_Pattern_List
+function Prj_Pattern_List
 prj_get_standard_blacklist(Arena *arena){
     String8 dot = string_u8_litexpr(".*");
     String8Array black_array = {};
@@ -47,9 +47,9 @@ prj_get_standard_blacklist(Arena *arena){
 }
 
 function b32
-prj_match_in_pattern_list(String8 string, Match_Pattern_List list){
+prj_match_in_pattern_list(String8 string, Prj_Pattern_List list){
     b32 found_match = false;
-    for (Match_Pattern_Node *node = list.first;
+    for (Prj_Pattern_Node *node = list.first;
          node != 0;
          node = node->next){
         if (string_wildcard_match(node->pattern.absolutes, string, StringMatch_Exact)){
@@ -109,7 +109,7 @@ prj_close_files_with_ext(Application_Links *app, String8Array extension_array){
 }
 
 function void
-prj_open_files_pattern_filter__rec(Application_Links *app, String8 path, Match_Pattern_List whitelist, Match_Pattern_List blacklist, Prj_Open_File_Flags flags){
+prj_open_files_pattern_filter__rec(Application_Links *app, String8 path, Prj_Pattern_List whitelist, Prj_Pattern_List blacklist, Prj_Open_File_Flags flags){
     Scratch_Block scratch(app);
     
     ProfileScopeNamed(app, "get file list", profile_get_file_list);
@@ -143,7 +143,7 @@ prj_open_files_pattern_filter__rec(Application_Links *app, String8 path, Match_P
 }
 
 function void
-prj_open_files_pattern_filter(Application_Links *app, String8 dir, Match_Pattern_List whitelist, Match_Pattern_List blacklist, Prj_Open_File_Flags flags){
+prj_open_files_pattern_filter(Application_Links *app, String8 dir, Prj_Pattern_List whitelist, Prj_Pattern_List blacklist, Prj_Open_File_Flags flags){
     ProfileScope(app, "open all files in directory pattern");
     Scratch_Block scratch(app);
     String8 directory = dir;
@@ -161,8 +161,8 @@ prj_open_all_files_with_ext_in_hot(Application_Links *app, String8Array array, P
     if (!character_is_slash(string_get_character(hot, hot.size - 1))){
         directory = push_u8_stringf(scratch, "%.*s/", string_expand(hot));
     }
-    Match_Pattern_List whitelist = prj_pattern_list_from_extension_array(scratch, array);
-    Match_Pattern_List blacklist = prj_get_standard_blacklist(scratch);
+    Prj_Pattern_List whitelist = prj_pattern_list_from_extension_array(scratch, array);
+    Prj_Pattern_List blacklist = prj_get_standard_blacklist(scratch);
     prj_open_files_pattern_filter(app, hot, whitelist, blacklist, flags);
 }
 
@@ -170,14 +170,14 @@ prj_open_all_files_with_ext_in_hot(Application_Links *app, String8Array array, P
 // NOTE(allen): Project Parse
 
 function void
-prj_parse_pattern_list(Arena *arena, Config *parsed, char *root_variable_name, Match_Pattern_List *list_out){
+prj_parse_pattern_list(Arena *arena, Config *parsed, char *root_variable_name, Prj_Pattern_List *list_out){
     Config_Compound *compound = 0;
     if (config_compound_var(parsed, root_variable_name, 0, &compound)){
         Config_Get_Result_List list = typed_string_array_reference_list(arena, parsed, compound);
         for (Config_Get_Result_Node *cfg_node = list.first;
              cfg_node != 0;
              cfg_node = cfg_node->next){
-            Match_Pattern_Node *node = push_array(arena, Match_Pattern_Node, 1);
+            Prj_Pattern_Node *node = push_array(arena, Prj_Pattern_Node, 1);
             sll_queue_push(list_out->first, list_out->last, node);
             list_out->count += 1;
             String8 str = push_string_copy(arena, cfg_node->result.string);
@@ -414,11 +414,11 @@ prj_parse_from_v1_config_data(Application_Links *app, Arena *arena, String8 root
 }
 
 function void
-project_deep_copy__pattern_list(Arena *arena, Match_Pattern_List *src_list, Match_Pattern_List *dst_list){
-    for (Match_Pattern_Node *src_node = src_list->first;
+project_deep_copy__pattern_list(Arena *arena, Prj_Pattern_List *src_list, Prj_Pattern_List *dst_list){
+    for (Prj_Pattern_Node *src_node = src_list->first;
          src_node != 0;
          src_node = src_node->next){
-        Match_Pattern_Node *dst_node = push_array(arena, Match_Pattern_Node, 1);
+        Prj_Pattern_Node *dst_node = push_array(arena, Prj_Pattern_Node, 1);
         sll_queue_push(dst_list->first, dst_list->last, dst_node);
         dst_list->count += 1;
         
@@ -587,7 +587,7 @@ prj_version_1_to_version_2(Application_Links *app, Config *parsed, Prj *project)
     // NOTE(allen): Load Pattern
     struct PatternVars{
         String_ID id;
-        Match_Pattern_List list;
+        Prj_Pattern_List list;
     };
     PatternVars pattern_vars[] = {
         {          patterns_id, project->          pattern_list},
@@ -600,7 +600,7 @@ prj_version_1_to_version_2(Application_Links *app, Config *parsed, Prj *project)
         Variable_Handle patterns = vars_new_variable(proj_var, pattern_var->id);
         
         i32 i = 0;
-        for (Match_Pattern_Node *node = pattern_var->list.first;
+        for (Prj_Pattern_Node *node = pattern_var->list.first;
              node != 0;
              node = node->next, i += 1){
             String8 pattern_string = prj_join_pattern_string(scratch, node->pattern.absolutes);
@@ -1220,8 +1220,8 @@ CUSTOM_DOC("Looks for a project.4coder file in the current directory and tries t
     Variable_Handle whitelist_var = vars_read_key(proj_var, vars_save_string_lit("patterns"));
     Variable_Handle blacklist_var = vars_read_key(proj_var, vars_save_string_lit("blacklist_patterns"));
     
-    Match_Pattern_List whitelist = prj_pattern_list_from_var(scratch, whitelist_var);
-    Match_Pattern_List blacklist = prj_pattern_list_from_var(scratch, blacklist_var);
+    Prj_Pattern_List whitelist = prj_pattern_list_from_var(scratch, whitelist_var);
+    Prj_Pattern_List blacklist = prj_pattern_list_from_var(scratch, blacklist_var);
     
     for (Variable_Handle load_path_var = vars_first_child(load_paths_os_var);
          !vars_is_nil(load_path_var);

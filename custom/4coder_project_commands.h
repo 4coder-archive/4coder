@@ -10,18 +10,18 @@
 ////////////////////////////////
 // NOTE(allen): Match Pattern Types
 
-struct Match_Pattern{
+struct Prj_Pattern{
     String8List absolutes;
 };
 
-struct Match_Pattern_Node{
-    Match_Pattern_Node *next;
-    Match_Pattern pattern;
+struct Prj_Pattern_Node{
+    Prj_Pattern_Node *next;
+    Prj_Pattern pattern;
 };
 
-struct Match_Pattern_List{
-    Match_Pattern_Node *first;
-    Match_Pattern_Node *last;
+struct Prj_Pattern_List{
+    Prj_Pattern_Node *first;
+    Prj_Pattern_Node *last;
     i32 count;
 };
 
@@ -64,8 +64,8 @@ struct Prj{
     String8 dir;
     String8 name;
     
-    Match_Pattern_List pattern_list;
-    Match_Pattern_List blacklist_pattern_list;
+    Prj_Pattern_List pattern_list;
+    Prj_Pattern_List blacklist_pattern_list;
     Prj_File_Load_Path_Array load_path_array;
     Prj_Command_Array command_array;
     
@@ -106,20 +106,20 @@ enum{
 ////////////////////////////////
 // NOTE(allen): File Pattern Operators
 
-function Match_Pattern_List prj_pattern_list_from_extension_array(Arena *arena, String8Array list);
-function Match_Pattern_List prj_pattern_list_from_var(Arena *arena, Variable_Handle var);
-function Match_Pattern_List prj_get_standard_blacklist(Arena *arena);
+function Prj_Pattern_List prj_pattern_list_from_extension_array(Arena *arena, String8Array list);
+function Prj_Pattern_List prj_pattern_list_from_var(Arena *arena, Variable_Handle var);
+function Prj_Pattern_List prj_get_standard_blacklist(Arena *arena);
 
-function b32  prj_match_in_pattern_list(String8 string, Match_Pattern_List list);
+function b32  prj_match_in_pattern_list(String8 string, Prj_Pattern_List list);
 
 function void prj_close_files_with_ext(Application_Links *app, String8Array extension_array);
-function void prj_open_files_pattern_filter(Application_Links *app, String8 dir, Match_Pattern_List whitelist, Match_Pattern_List blacklist, Prj_Open_File_Flags flags);
+function void prj_open_files_pattern_filter(Application_Links *app, String8 dir, Prj_Pattern_List whitelist, Prj_Pattern_List blacklist, Prj_Open_File_Flags flags);
 function void prj_open_all_files_with_ext_in_hot(Application_Links *app, String8Array array, Prj_Open_File_Flags flags);
 
 ////////////////////////////////
 // NOTE(allen): Project Parse
 
-function void prj_parse_pattern_list(Arena *arena, Config *parsed, char *root_variable_name, Match_Pattern_List *list_out);
+function void prj_parse_pattern_list(Arena *arena, Config *parsed, char *root_variable_name, Prj_Pattern_List *list_out);
 function Prj_OS_Match_Level prj_parse_v1_os_match(String8 str, String8 this_os_str);
 function Prj *prj_parse_from_v1_config_data(Application_Links *app, Arena *arena, String8 root_dir, Config *parsed);
 
