@@ -186,24 +186,24 @@ prj_parse_pattern_list(Arena *arena, Config *parsed, char *root_variable_name, M
     }
 }
 
-function Project_OS_Match_Level
+function Prj_OS_Match_Level
 prj_parse_v1_os_match(String8 str, String8 this_os_str){
-    Project_OS_Match_Level result = ProjectOSMatchLevel_NoMatch;
+    Prj_OS_Match_Level result = PrjOSMatchLevel_NoMatch;
     if (string_match(str, this_os_str)){
-        result = ProjectOSMatchLevel_ActiveMatch;
+        result = PrjOSMatchLevel_ActiveMatch;
     }
     else if (string_match(str, string_u8_litexpr("all"))){
-        result = ProjectOSMatchLevel_ActiveMatch;
+        result = PrjOSMatchLevel_ActiveMatch;
     }
     else if (string_match(str, string_u8_litexpr("default"))){
-        result = ProjectOSMatchLevel_PassiveMatch;
+        result = PrjOSMatchLevel_PassiveMatch;
     }
     return(result);
 }
 
-function Project*
+function Prj*
 prj_parse_from_v1_config_data(Application_Links *app, Arena *arena, String8 root_dir, Config *parsed){
-    Project *project = push_array_zero(arena, Project, 1);
+    Prj *project = push_array_zero(arena, Prj, 1);
     
     // Set new project directory
     project->dir = push_string_copy(arena, root_dir);
@@ -246,13 +246,13 @@ prj_parse_from_v1_config_data(Application_Links *app, Arena *arena, String8 root
                 if (config_compound_compound_member(parsed, paths_option, "paths", 0, &paths)){
                     String8 str = {};
                     if (config_compound_string_member(parsed, paths_option, "os", 1, &str)){
-                        Project_OS_Match_Level r = prj_parse_v1_os_match(str, string_u8_litexpr(OS_NAME));
-                        if (r == ProjectOSMatchLevel_ActiveMatch){
+                        Prj_OS_Match_Level r = prj_parse_v1_os_match(str, string_u8_litexpr(OS_NAME));
+                        if (r == PrjOSMatchLevel_ActiveMatch){
                             found_match = true;
                             best_paths = paths;
                             break;
                         }
-                        else if (r == ProjectOSMatchLevel_PassiveMatch){
+                        else if (r == PrjOSMatchLevel_PassiveMatch){
                             if (!found_match){
                                 found_match = true;
                                 best_paths = paths;
@@ -265,10 +265,10 @@ prj_parse_from_v1_config_data(Application_Links *app, Arena *arena, String8 root
             if (found_match){
                 Config_Get_Result_List list = typed_compound_array_reference_list(arena, parsed, best_paths);
                 
-                project->load_path_array.paths = push_array(arena, Project_File_Load_Path, list.count);
+                project->load_path_array.paths = push_array(arena, Prj_File_Load_Path, list.count);
                 project->load_path_array.count = list.count;
                 
-                Project_File_Load_Path *dst = project->load_path_array.paths;
+                Prj_File_Load_Path *dst = project->load_path_array.paths;
                 for (Config_Get_Result_Node *node = list.first;
                      node != 0;
                      node = node->next, ++dst){
@@ -295,10 +295,10 @@ prj_parse_from_v1_config_data(Application_Links *app, Arena *arena, String8 root
         if (config_compound_var(parsed, "command_list", 0, &compound)){
             Config_Get_Result_List list = typed_compound_array_reference_list(arena, parsed, compound);
             
-            project->command_array.commands = push_array(arena, Project_Command, list.count);
+            project->command_array.commands = push_array(arena, Prj_Command, list.count);
             project->command_array.count = list.count;
             
-            Project_Command *dst = project->command_array.commands;
+            Prj_Command *dst = project->command_array.commands;
             for (Config_Get_Result_Node *node = list.first;
                  node != 0;
                  node = node->next, ++dst){
@@ -350,13 +350,13 @@ prj_parse_from_v1_config_data(Application_Links *app, Arena *arena, String8 root
                     if (config_compound_string_member(parsed, cmd_option, "cmd", 0, &cmd)){
                         String8 str = {};
                         if (config_compound_string_member(parsed, cmd_option, "os", 1, &str)){
-                            Project_OS_Match_Level r = prj_parse_v1_os_match(str, string_u8_litexpr(OS_NAME));
-                            if (r == ProjectOSMatchLevel_ActiveMatch){
+                            Prj_OS_Match_Level r = prj_parse_v1_os_match(str, string_u8_litexpr(OS_NAME));
+                            if (r == PrjOSMatchLevel_ActiveMatch){
                                 can_emit_command = true;
                                 cmd_str = cmd;
                                 break;
                             }
-                            else if (r == ProjectOSMatchLevel_PassiveMatch){
+                            else if (r == PrjOSMatchLevel_PassiveMatch){
                                 if (!can_emit_command){
                                     can_emit_command = true;
                                     cmd_str = cmd;
@@ -397,7 +397,7 @@ prj_parse_from_v1_config_data(Application_Links *app, Arena *arena, String8 root
             i32 index = -1;
             if (config_string_var(parsed, "fkey_command", i, &name)){
                 i32 count = project->command_array.count;
-                Project_Command *command_ptr = project->command_array.commands;
+                Prj_Command *command_ptr = project->command_array.commands;
                 for (i32 j = 0; j < count; ++j, ++command_ptr){
                     if (string_match(command_ptr->name, name)){
                         index = j;
@@ -431,9 +431,9 @@ project_deep_copy__pattern_list(Arena *arena, Match_Pattern_List *src_list, Matc
     }
 }
 
-function Project
-project_deep_copy__inner(Arena *arena, Project *project){
-    Project result = {};
+function Prj
+project_deep_copy__inner(Arena *arena, Prj *project){
+    Prj result = {};
     result.dir = push_string_copy(arena, project->dir);
     result.name = push_string_copy(arena, project->name);
     project_deep_copy__pattern_list(arena, &project->pattern_list, &result.pattern_list);
@@ -441,11 +441,11 @@ project_deep_copy__inner(Arena *arena, Project *project){
     
     {
         i32 path_count = project->load_path_array.count;
-        result.load_path_array.paths = push_array(arena, Project_File_Load_Path, path_count);
+        result.load_path_array.paths = push_array(arena, Prj_File_Load_Path, path_count);
         result.load_path_array.count = path_count;
         
-        Project_File_Load_Path *dst = result.load_path_array.paths;
-        Project_File_Load_Path *src = project->load_path_array.paths;
+        Prj_File_Load_Path *dst = result.load_path_array.paths;
+        Prj_File_Load_Path *src = project->load_path_array.paths;
         for (i32 i = 0; i < path_count; ++i, ++dst, ++src){
             dst->path = push_string_copy(arena, src->path);
             dst->recursive = src->recursive;
@@ -455,11 +455,11 @@ project_deep_copy__inner(Arena *arena, Project *project){
     
     {
         i32 command_count = project->command_array.count;
-        result.command_array.commands = push_array_zero(arena, Project_Command, command_count);
+        result.command_array.commands = push_array_zero(arena, Prj_Command, command_count);
         result.command_array.count = command_count;
         
-        Project_Command *dst = result.command_array.commands;
-        Project_Command *src = project->command_array.commands;
+        Prj_Command *dst = result.command_array.commands;
+        Prj_Command *src = project->command_array.commands;
         for (i32 i = 0; i < command_count; ++i, ++dst, ++src){
             if (src->name.str != 0){
                 dst->name = push_string_copy(arena, src->name);
@@ -482,10 +482,10 @@ project_deep_copy__inner(Arena *arena, Project *project){
     return(result);
 }
 
-function Project
-project_deep_copy(Arena *arena, Project *project){
+function Prj
+project_deep_copy(Arena *arena, Prj *project){
     Temp_Memory restore_point = begin_temp(arena);
-    Project result = project_deep_copy__inner(arena, project);
+    Prj result = project_deep_copy__inner(arena, project);
     if (!result.loaded){
         end_temp(restore_point);
         block_zero_struct(&result);
@@ -549,7 +549,7 @@ prj_sanitize_string(Arena *arena, String8 string){
 }
 
 function Variable_Handle
-prj_version_1_to_version_2(Application_Links *app, Config *parsed, Project *project){
+prj_version_1_to_version_2(Application_Links *app, Config *parsed, Prj *project){
     Scratch_Block scratch(app);
     
     String_ID project_id = vars_save_string_lit("prj_config");
@@ -615,7 +615,7 @@ prj_version_1_to_version_2(Application_Links *app, Config *parsed, Project *proj
         Variable_Handle load_paths = vars_new_variable(proj_var, load_paths_id);
         Variable_Handle os_var = vars_new_variable(load_paths, os_id);
         i32 count = project->load_path_array.count;
-        Project_File_Load_Path *load_path = project->load_path_array.paths;
+        Prj_File_Load_Path *load_path = project->load_path_array.paths;
         for (i32 i = 0; i < count; i += 1, load_path += 1){
             String_ID key = vars_save_string(push_stringf(scratch, "%d", i));
             Variable_Handle path_var = vars_new_variable(os_var, key);
@@ -629,7 +629,7 @@ prj_version_1_to_version_2(Application_Links *app, Config *parsed, Project *proj
     {
         Variable_Handle cmd_list_var = vars_new_variable(proj_var, commands_id);
         i32 count = project->command_array.count;
-        Project_Command *cmd = project->command_array.commands;
+        Prj_Command *cmd = project->command_array.commands;
         for (i32 i = 0; i < count; i += 1, cmd += 1){
             String8 cmd_name = prj_sanitize_string(scratch, cmd->name);
             Variable_Handle cmd_var = vars_new_variable(cmd_list_var, vars_save_string(cmd_name));
@@ -647,7 +647,7 @@ prj_version_1_to_version_2(Application_Links *app, Config *parsed, Project *proj
         for (i32 i = 0; i < 16; i += 1){
             i32 cmd_index = project->fkey_commands[i];
             if (0 <= cmd_index && cmd_index < project->command_array.count){
-                Project_Command *cmd = project->command_array.commands + cmd_index;
+                Prj_Command *cmd = project->command_array.commands + cmd_index;
                 if (cmd->name.size > 0){
                     String8 cmd_name = prj_sanitize_string(scratch, cmd->name);
                     String_ID key = vars_save_string(push_stringf(scratch, "%d", i));
@@ -664,9 +664,9 @@ prj_version_1_to_version_2(Application_Links *app, Config *parsed, Project *proj
 ////////////////////////////////
 // NOTE(allen): Project Files
 
-function Project_Setup_Status
+function Prj_Setup_Status
 prj_file_is_setup(Application_Links *app, String8 script_path, String8 script_file){
-    Project_Setup_Status result = {};
+    Prj_Setup_Status result = {};
     {
         Scratch_Block scratch(app);
         String8 bat_path = push_u8_stringf(scratch, "%.*s/%.*s.bat",
@@ -689,62 +689,6 @@ prj_file_is_setup(Application_Links *app, String8 script_path, String8 script_fi
     }
     result.everything_exists = (result.bat_exists && result.sh_exists && result.project_exists);
     return(result);
-}
-
-function Project_Key_Strings
-prj_get_key_strings(Application_Links *app,
-                    b32 get_script_file, b32 get_code_file,
-                    u8 *script_file_space, i32 script_file_cap,
-                    u8 *code_file_space, i32 code_file_cap,
-                    u8 *output_dir_space, i32 output_dir_cap,
-                    u8 *binary_file_space, i32 binary_file_cap){
-    Project_Key_Strings keys = {};
-    
-    Query_Bar_Group bar_group(app);
-    
-    Query_Bar script_file_bar = {};
-    Query_Bar code_file_bar = {};
-    Query_Bar output_dir_bar = {};
-    Query_Bar binary_file_bar = {};
-    
-    if (get_script_file){
-        script_file_bar.prompt = string_u8_litexpr("Script Name: ");
-        script_file_bar.string = SCu8(script_file_space, (u64)0);
-        script_file_bar.string_capacity = script_file_cap;
-        if (!query_user_string(app, &script_file_bar)) return(keys);
-        if (script_file_bar.string.size == 0) return(keys);
-    }
-    
-    if (get_code_file){
-        code_file_bar.prompt = string_u8_litexpr("Build Target: ");
-        code_file_bar.string = SCu8(code_file_space, (u64)0);
-        code_file_bar.string_capacity = code_file_cap;
-        if (!query_user_string(app, &code_file_bar)) return(keys);
-        if (code_file_bar.string.size == 0) return(keys);
-    }
-    
-    output_dir_bar.prompt = string_u8_litexpr("Output Directory: ");
-    output_dir_bar.string = SCu8(output_dir_space, (u64)0);
-    output_dir_bar.string_capacity = output_dir_cap;
-    if (!query_user_string(app, &output_dir_bar)) return(keys);
-    if (output_dir_bar.string.size == 0 && output_dir_cap > 0){
-        output_dir_bar.string.str[0] = '.';
-        output_dir_bar.string.size = 1;
-    }
-    
-    binary_file_bar.prompt = string_u8_litexpr("Binary Output: ");
-    binary_file_bar.string = SCu8(binary_file_space, (u64)0);
-    binary_file_bar.string_capacity = binary_file_cap;
-    if (!query_user_string(app, &binary_file_bar)) return(keys);
-    if (binary_file_bar.string.size == 0) return(keys);
-    
-    keys.success = true;
-    keys.script_file = script_file_bar.string;
-    keys.code_file = code_file_bar.string;
-    keys.output_dir = output_dir_bar.string;
-    keys.binary_file = binary_file_bar.string;
-    
-    return(keys);
 }
 
 function b32
@@ -884,12 +828,16 @@ prj_generate_project(Arena *scratch, String8 script_path, String8 script_file, S
 }
 
 function void
-prj_setup_scripts(Application_Links *app, b32 do_project_file, b32 do_bat_script, b32 do_sh_script){
+prj_setup_scripts(Application_Links *app, Prj_Setup_Script_Flags flags){
     Scratch_Block scratch(app);
     String8 script_path = push_hot_directory(app, scratch);
     
+    b32 do_project_file = (flags & PrjSetupScriptFlag_Project);
+    b32 do_bat_script   = (flags & PrjSetupScriptFlag_Bat);
+    b32 do_sh_script    = (flags & PrjSetupScriptFlag_Sh);
+    
     b32 needs_to_do_work = false;
-    Project_Setup_Status status = {};
+    Prj_Setup_Status status = {};
     if (do_project_file){
         status = prj_file_is_setup(app, script_path, string_u8_litexpr("build"));
         needs_to_do_work =
@@ -903,33 +851,84 @@ prj_setup_scripts(Application_Links *app, b32 do_project_file, b32 do_bat_script
     
     if (needs_to_do_work){
         // Query the User for Key File Names
-        u8 script_file_space[1024];
-        u8 code_file_space  [1024];
-        u8 output_dir_space [1024];
-        u8 binary_file_space[1024];
         
-        b32 get_script_file = !do_project_file;
-        b32 get_code_file =
-            (do_bat_script && !status.bat_exists) ||
-            (do_sh_script && !status.sh_exists);
+        b32 finished_queries = false;
+        local_const i32 text_field_cap = 1024;
         
-        Project_Key_Strings keys = {};
-        keys = prj_get_key_strings(app, get_script_file, get_code_file,
-                                   script_file_space, sizeof(script_file_space),
-                                   code_file_space, sizeof(code_file_space),
-                                   output_dir_space, sizeof(output_dir_space),
-                                   binary_file_space, sizeof(binary_file_space));
+        String8 script_file = {};
+        String8 code_file = {};
+        String8 output_dir = {};
+        String8 binary_file = {};
         
-        if (!keys.success){
+        {
+            Query_Bar_Group bar_group(app);
+            
+            Query_Bar script_file_bar = {};
+            Query_Bar code_file_bar = {};
+            Query_Bar output_dir_bar = {};
+            Query_Bar binary_file_bar = {};
+            
+            b32 get_script_file = !do_project_file;
+            b32 get_code_file = ((do_bat_script && !status.bat_exists) || (do_sh_script && !status.sh_exists));
+            
+            if (get_script_file){
+                script_file_bar.prompt = string_u8_litexpr("Script Name: ");
+                script_file_bar.string.str = push_array(scratch, u8, text_field_cap);
+                script_file_bar.string_capacity = text_field_cap;
+                if (!query_user_string(app, &script_file_bar) ||
+                    script_file_bar.string.size == 0){
+                    goto fail_out;
+                }
+            }
+            
+            if (get_code_file){
+                code_file_bar.prompt = string_u8_litexpr("Build Target: ");
+                code_file_bar.string.str = push_array(scratch, u8, text_field_cap);
+                code_file_bar.string_capacity = text_field_cap;
+                if (!query_user_string(app, &code_file_bar) ||
+                    code_file_bar.string.size == 0){
+                    goto fail_out;
+                }
+            }
+            
+            output_dir_bar.prompt = string_u8_litexpr("Output Directory: ");
+            output_dir_bar.string.str = push_array(scratch, u8, text_field_cap);
+            output_dir_bar.string_capacity = text_field_cap;
+            if (!query_user_string(app, &output_dir_bar)){
+                goto fail_out;
+            }
+            if (output_dir_bar.string.size == 0){
+                output_dir_bar.string.str[0] = '.';
+                output_dir_bar.string.size = 1;
+            }
+            
+            binary_file_bar.prompt = string_u8_litexpr("Binary Output: ");
+            binary_file_bar.string.str = push_array(scratch, u8, text_field_cap);
+            binary_file_bar.string_capacity = text_field_cap;
+            if (!query_user_string(app, &binary_file_bar) ||
+                binary_file_bar.string.size == 0){
+                goto fail_out;
+            }
+            
+            finished_queries = true;
+            script_file = script_file_bar.string;
+            code_file   = code_file_bar.string;
+            output_dir  = output_dir_bar.string;
+            binary_file = binary_file_bar.string;
+            
+            fail_out:;
+        }
+        
+        if (!finished_queries){
             return;
         }
         
         if (do_project_file){
-            keys.script_file = string_u8_litexpr("build");
+            script_file = string_u8_litexpr("build");
         }
         
         if (!do_project_file){
-            status = prj_file_is_setup(app, script_path, keys.script_file);
+            status = prj_file_is_setup(app, script_path, script_file);
         }
         
         // Generate Scripts
@@ -938,9 +937,8 @@ prj_setup_scripts(Application_Links *app, b32 do_project_file, b32 do_bat_script
                 String8 default_flags_bat = def_get_config_string(scratch, vars_save_string_lit("default_flags_bat"));
                 String8 default_compiler_bat = def_get_config_string(scratch, vars_save_string_lit("default_compiler_bat"));
                 
-                if (!prj_generate_bat(scratch, default_flags_bat, default_compiler_bat,
-                                      script_path, keys.script_file,
-                                      keys.code_file, keys.output_dir, keys.binary_file)){
+                if (!prj_generate_bat(scratch, default_flags_bat, default_compiler_bat, script_path,
+                                      script_file, code_file, output_dir, binary_file)){
                     print_message(app, string_u8_litexpr("could not create build.bat for new project\n"));
                 }
             }
@@ -954,8 +952,7 @@ prj_setup_scripts(Application_Links *app, b32 do_project_file, b32 do_bat_script
                 String8 default_flags_sh = def_get_config_string(scratch, vars_save_string_lit("default_flags_sh"));
                 String8 default_compiler_sh = def_get_config_string(scratch, vars_save_string_lit("default_compiler_sh"));
                 if (!prj_generate_sh(scratch, default_flags_sh, default_compiler_sh,
-                                     script_path, keys.script_file,
-                                     keys.code_file, keys.output_dir, keys.binary_file)){
+                                     script_path, script_file, code_file, output_dir, binary_file)){
                     print_message(app, string_u8_litexpr("could not create build.sh for new project\n"));
                 }
             }
@@ -966,7 +963,7 @@ prj_setup_scripts(Application_Links *app, b32 do_project_file, b32 do_bat_script
         
         if (do_project_file){
             if (!status.project_exists){
-                if (!prj_generate_project(scratch, script_path, keys.script_file, keys.output_dir, keys.binary_file)){
+                if (!prj_generate_project(scratch, script_path, script_file, output_dir, binary_file)){
                     print_message(app, string_u8_litexpr("could not create project.4coder for new project\n"));
                 }
             }
@@ -1183,7 +1180,7 @@ CUSTOM_DOC("Looks for a project.4coder file in the current directory and tries t
                     case 0:
                     case 1:
                     {
-                        Project *project = prj_parse_from_v1_config_data(app, scratch, project_root, config_parse);
+                        Prj *project = prj_parse_from_v1_config_data(app, scratch, project_root, config_parse);
                         proj_var = prj_version_1_to_version_2(app, config_parse, project);
                     }break;
                     default:
@@ -1307,26 +1304,26 @@ CUSTOM_DOC("Changes 4coder's hot directory to the root directory of the currentl
 CUSTOM_COMMAND_SIG(setup_new_project)
 CUSTOM_DOC("Queries the user for several configuration options and initializes a new 4coder project with build scripts for every OS.")
 {
-    prj_setup_scripts(app, true, true, true);
+    prj_setup_scripts(app, PrjSetupScriptFlag_Project|PrjSetupScriptFlag_Bat|PrjSetupScriptFlag_Sh);
     load_project(app);
 }
 
 CUSTOM_COMMAND_SIG(setup_build_bat)
 CUSTOM_DOC("Queries the user for several configuration options and initializes a new build batch script.")
 {
-    prj_setup_scripts(app, false, true, false);
+    prj_setup_scripts(app, PrjSetupScriptFlag_Bat);
 }
 
 CUSTOM_COMMAND_SIG(setup_build_sh)
 CUSTOM_DOC("Queries the user for several configuration options and initializes a new build shell script.")
 {
-    prj_setup_scripts(app, false, false, true);
+    prj_setup_scripts(app, PrjSetupScriptFlag_Sh);
 }
 
 CUSTOM_COMMAND_SIG(setup_build_bat_and_sh)
 CUSTOM_DOC("Queries the user for several configuration options and initializes a new build batch script.")
 {
-    prj_setup_scripts(app, false, true, true);
+    prj_setup_scripts(app, PrjSetupScriptFlag_Bat|PrjSetupScriptFlag_Sh);
 }
 
 CUSTOM_COMMAND_SIG(project_command_lister)

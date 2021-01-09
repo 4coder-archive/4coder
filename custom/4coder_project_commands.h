@@ -7,8 +7,6 @@
 #if !defined(FCODER_PROJECT_COMMANDS_H)
 #define FCODER_PROJECT_COMMANDS_H
 
-// TODO(allen): names pass
-
 ////////////////////////////////
 // NOTE(allen): Match Pattern Types
 
@@ -35,18 +33,18 @@ enum{
 ///////////////////////////////
 // NOTE(allen): Project v0-v1 Structure
 
-struct Project_File_Load_Path{
+struct Prj_File_Load_Path{
     String8 path;
     b32 recursive;
     b32 relative;
 };
 
-struct Project_File_Load_Path_Array{
-    Project_File_Load_Path *paths;
+struct Prj_File_Load_Path_Array{
+    Prj_File_Load_Path *paths;
     i32 count;
 };
 
-struct Project_Command{
+struct Prj_Command{
     String8 name;
     String8 cmd;
     String8 out;
@@ -55,12 +53,12 @@ struct Project_Command{
     b32 cursor_at_end;
 };
 
-struct Project_Command_Array{
-    Project_Command *commands;
+struct Prj_Command_Array{
+    Prj_Command *commands;
     i32 count;
 };
 
-struct Project{
+struct Prj{
     b32 loaded;
     
     String8 dir;
@@ -68,34 +66,41 @@ struct Project{
     
     Match_Pattern_List pattern_list;
     Match_Pattern_List blacklist_pattern_list;
-    Project_File_Load_Path_Array load_path_array;
-    Project_Command_Array command_array;
+    Prj_File_Load_Path_Array load_path_array;
+    Prj_Command_Array command_array;
     
     i32 fkey_commands[16];
 };
 
-enum Project_OS_Match_Level{
-    ProjectOSMatchLevel_NoMatch = 0,
-    ProjectOSMatchLevel_PassiveMatch = 1,
-    ProjectOSMatchLevel_ActiveMatch = 2,
+enum Prj_OS_Match_Level{
+    PrjOSMatchLevel_NoMatch = 0,
+    PrjOSMatchLevel_PassiveMatch = 1,
+    PrjOSMatchLevel_ActiveMatch = 2,
 };
 
 ///////////////////////////////
 // NOTE(allen): Project Files
 
-struct Project_Setup_Status{
+struct Prj_Setup_Status{
     b32 bat_exists;
     b32 sh_exists;
     b32 project_exists;
     b32 everything_exists;
 };
 
-struct Project_Key_Strings{
+struct Prj_Key_Strings{
     b32 success;
     String8 script_file;
     String8 code_file;
     String8 output_dir;
     String8 binary_file;
+};
+
+typedef u32 Prj_Setup_Script_Flags;
+enum{
+    PrjSetupScriptFlag_Project = 0x1,
+    PrjSetupScriptFlag_Bat     = 0x2,
+    PrjSetupScriptFlag_Sh      = 0x4,
 };
 
 ////////////////////////////////
@@ -115,21 +120,22 @@ function void prj_open_all_files_with_ext_in_hot(Application_Links *app, String8
 // NOTE(allen): Project Parse
 
 function void prj_parse_pattern_list(Arena *arena, Config *parsed, char *root_variable_name, Match_Pattern_List *list_out);
-function Project_OS_Match_Level prj_parse_v1_os_match(String8 str, String8 this_os_str);
-function Project *prj_parse_from_v1_config_data(Application_Links *app, Arena *arena, String8 root_dir, Config *parsed);
+function Prj_OS_Match_Level prj_parse_v1_os_match(String8 str, String8 this_os_str);
+function Prj *prj_parse_from_v1_config_data(Application_Links *app, Arena *arena, String8 root_dir, Config *parsed);
 
 function String8 prj_join_pattern_string(Arena *arena, String8List list);
 function String8 prj_sanitize_string(Arena *arena, String8 string);
-function Variable_Handle prj_version_1_to_version_2(Application_Links *app, Config *parsed, Project *project);
+function Variable_Handle prj_version_1_to_version_2(Application_Links *app, Config *parsed, Prj *project);
 
 ////////////////////////////////
 // NOTE(allen): Project Files
 
-function Project_Setup_Status prj_file_is_setup(Application_Links *app, String8 script_path, String8 script_file);
-function Project_Key_Strings  prj_get_key_strings(Application_Links *app, b32 get_script_file, b32 get_code_file, u8* script_file_space, i32 script_file_cap, u8* code_file_space, i32 code_file_cap, u8* output_dir_space, i32 output_dir_cap, u8* binary_file_space, i32 binary_file_cap);
+function Prj_Setup_Status prj_file_is_setup(Application_Links *app, String8 script_path, String8 script_file);
 function b32 prj_generate_bat(Arena *scratch, String8 opts, String8 compiler, String8 script_path, String8 script_file, String8 code_file, String8 output_dir, String8 binary_file);
 function b32 prj_generate_sh(Arena *scratch, String8 opts, String8 compiler, String8 script_path, String8 script_file, String8 code_file, String8 output_dir, String8 binary_file);
 function b32 prj_generate_project(Arena *scratch, String8 script_path, String8 script_file, String8 output_dir, String8 binary_file);
+
+function void prj_setup_scripts(Application_Links *app, Prj_Setup_Script_Flags flags);
 
 ////////////////////////////////
 // NOTE(allen): Project Operations
@@ -139,7 +145,7 @@ function Variable_Handle prj_command_from_name(Application_Links *app, String8 c
 function void            prj_exec_command_name(Application_Links *app, String8 cmd_name);
 function void            prj_exec_command_fkey_index(Application_Links *app, i32 fkey_index);
 
-function String8 prj_path_from_project(Arena *arena, Variable_Handle project);
+function String8         prj_path_from_project(Arena *arena, Variable_Handle project);
 function Variable_Handle prj_cmd_from_user(Application_Links *app, Variable_Handle prj_var, String8 query);
 
 #endif
