@@ -4,8 +4,11 @@
 
 // TOP
 
+////////////////////////////////
+// NOTE(allen): File Pattern Operators
+
 function Match_Pattern_List
-prj_pattern_list_from_extension_array(Arena *arena, String_Const_u8_Array list){
+prj_pattern_list_from_extension_array(Arena *arena, String8Array list){
     Match_Pattern_List result = {};
     for (i32 i = 0;
          i < list.count;
@@ -14,7 +17,7 @@ prj_pattern_list_from_extension_array(Arena *arena, String_Const_u8_Array list){
         sll_queue_push(result.first, result.last, node);
         result.count += 1;
         
-        String_Const_u8 str = push_stringf(arena, "*.%.*s", string_expand(list.vals[i]));
+        String8 str = push_stringf(arena, "*.%.*s", string_expand(list.vals[i]));
         node->pattern.absolutes = string_split_wildcards(arena, str);
     }
     return(result);
@@ -28,7 +31,7 @@ prj_pattern_list_from_var(Arena *arena, Variable_Handle var){
         sll_queue_push(result.first, result.last, node);
         result.count += 1;
         
-        String_Const_u8 str = vars_string_from_var(arena, child_var);
+        String8 str = vars_string_from_var(arena, child_var);
         node->pattern.absolutes = string_split_wildcards(arena, str);
     }
     return(result);
@@ -36,15 +39,15 @@ prj_pattern_list_from_var(Arena *arena, Variable_Handle var){
 
 function Match_Pattern_List
 prj_get_standard_blacklist(Arena *arena){
-    String_Const_u8 dot = string_u8_litexpr(".*");
-    String_Const_u8_Array black_array = {};
+    String8 dot = string_u8_litexpr(".*");
+    String8Array black_array = {};
     black_array.strings = &dot;
     black_array.count = 1;
     return(prj_pattern_list_from_extension_array(arena, black_array));
 }
 
 function b32
-prj_match_in_pattern_list(String_Const_u8 string, Match_Pattern_List list){
+prj_match_in_pattern_list(String8 string, Match_Pattern_List list){
     b32 found_match = false;
     for (Match_Pattern_Node *node = list.first;
          node != 0;
@@ -58,7 +61,7 @@ prj_match_in_pattern_list(String_Const_u8 string, Match_Pattern_List list){
 }
 
 function void
-prj_close_files_with_ext(Application_Links *app, String_Const_u8_Array extension_array){
+prj_close_files_with_ext(Application_Links *app, String8Array extension_array){
     Scratch_Block scratch(app);
     
     i32 buffers_to_close_max = Thousand(100);
@@ -76,10 +79,10 @@ prj_close_files_with_ext(Application_Links *app, String_Const_u8_Array extension
             
             if (extension_array.count > 0){
                 Temp_Memory name_temp = begin_temp(scratch);
-                String_Const_u8 file_name = push_buffer_file_name(app, scratch, buffer);
+                String8 file_name = push_buffer_file_name(app, scratch, buffer);
                 is_match = false;
                 if (file_name.size > 0){
-                    String_Const_u8 extension = string_file_extension(file_name);
+                    String8 extension = string_file_extension(file_name);
                     for (i32 i = 0; i < extension_array.count; ++i){
                         if (string_match(extension, extension_array.strings[i])){
                             is_match = true;
@@ -106,16 +109,7 @@ prj_close_files_with_ext(Application_Links *app, String_Const_u8_Array extension
 }
 
 function void
-prj_open_files_with_ext(Application_Links *app, String_Const_u8 dir, String_Const_u8_Array array, u32 flags){
-    Scratch_Block scratch(app);
-    Match_Pattern_List whitelist = prj_pattern_list_from_extension_array(scratch, array);
-    Match_Pattern_List blacklist = prj_get_standard_blacklist(scratch);
-    prj_open_files_pattern_filter(app, dir, whitelist, blacklist, flags);
-}
-
-function void
-prj_open_files_pattern_filter__rec(Application_Links *app, String_Const_u8 path,
-                                   Match_Pattern_List whitelist, Match_Pattern_List blacklist, u32 flags){
+prj_open_files_pattern_filter__rec(Application_Links *app, String8 path, Match_Pattern_List whitelist, Match_Pattern_List blacklist, Prj_Open_File_Flags flags){
     Scratch_Block scratch(app);
     
     ProfileScopeNamed(app, "get file list", profile_get_file_list);
@@ -124,15 +118,15 @@ prj_open_files_pattern_filter__rec(Application_Links *app, String_Const_u8 path,
     
     File_Info **info = list.infos;
     for (u32 i = 0; i < list.count; ++i, ++info){
-        String_Const_u8 file_name = (**info).file_name;
+        String8 file_name = (**info).file_name;
         if (HasFlag((**info).attributes.flags, FileAttribute_IsDirectory)){
-            if ((flags & OpenAllFilesFlag_Recursive) == 0){
+            if ((flags & PrjOpenFileFlag_Recursive) == 0){
                 continue;
             }
             if (prj_match_in_pattern_list(file_name, blacklist)){
                 continue;
             }
-            String_Const_u8 new_path = push_u8_stringf(scratch, "%.*s%.*s/", string_expand(path), string_expand(file_name));
+            String8 new_path = push_u8_stringf(scratch, "%.*s%.*s/", string_expand(path), string_expand(file_name));
             prj_open_files_pattern_filter__rec(app, new_path, whitelist, blacklist, flags);
         }
         else{
@@ -142,17 +136,17 @@ prj_open_files_pattern_filter__rec(Application_Links *app, String_Const_u8 path,
             if (prj_match_in_pattern_list(file_name, blacklist)){
                 continue;
             }
-            String_Const_u8 full_path = push_u8_stringf(scratch, "%.*s%.*s", string_expand(path), string_expand(file_name));
+            String8 full_path = push_u8_stringf(scratch, "%.*s%.*s", string_expand(path), string_expand(file_name));
             create_buffer(app, full_path, 0);
         }
     }
 }
 
 function void
-prj_open_files_pattern_filter(Application_Links *app, String_Const_u8 dir, Match_Pattern_List whitelist, Match_Pattern_List blacklist, u32 flags){
+prj_open_files_pattern_filter(Application_Links *app, String8 dir, Match_Pattern_List whitelist, Match_Pattern_List blacklist, Prj_Open_File_Flags flags){
     ProfileScope(app, "open all files in directory pattern");
     Scratch_Block scratch(app);
-    String_Const_u8 directory = dir;
+    String8 directory = dir;
     if (!character_is_slash(string_get_character(directory, directory.size - 1))){
         directory = push_u8_stringf(scratch, "%.*s/", string_expand(dir));
     }
@@ -160,17 +154,20 @@ prj_open_files_pattern_filter(Application_Links *app, String_Const_u8 dir, Match
 }
 
 function void
-prj_open_all_files_with_ext_in_hot(Application_Links *app, String_Const_u8_Array array, u32 flags){
+prj_open_all_files_with_ext_in_hot(Application_Links *app, String8Array array, Prj_Open_File_Flags flags){
     Scratch_Block scratch(app);
-    String_Const_u8 hot = push_hot_directory(app, scratch);
-    String_Const_u8 directory = hot;
+    String8 hot = push_hot_directory(app, scratch);
+    String8 directory = hot;
     if (!character_is_slash(string_get_character(hot, hot.size - 1))){
         directory = push_u8_stringf(scratch, "%.*s/", string_expand(hot));
     }
-    prj_open_files_with_ext(app, hot, array, flags);
+    Match_Pattern_List whitelist = prj_pattern_list_from_extension_array(scratch, array);
+    Match_Pattern_List blacklist = prj_get_standard_blacklist(scratch);
+    prj_open_files_pattern_filter(app, hot, whitelist, blacklist, flags);
 }
 
-///////////////////////////////
+////////////////////////////////
+// NOTE(allen): Project Parse
 
 function void
 prj_parse_pattern_list(Arena *arena, Config *parsed, char *root_variable_name, Match_Pattern_List *list_out){
@@ -183,14 +180,14 @@ prj_parse_pattern_list(Arena *arena, Config *parsed, char *root_variable_name, M
             Match_Pattern_Node *node = push_array(arena, Match_Pattern_Node, 1);
             sll_queue_push(list_out->first, list_out->last, node);
             list_out->count += 1;
-            String_Const_u8 str = push_string_copy(arena, cfg_node->result.string);
+            String8 str = push_string_copy(arena, cfg_node->result.string);
             node->pattern.absolutes = string_split_wildcards(arena, str);
         }
     }
 }
 
 function Project_OS_Match_Level
-prj_parse_v1_os_match(String_Const_u8 str, String_Const_u8 this_os_str){
+prj_parse_v1_os_match(String8 str, String8 this_os_str){
     Project_OS_Match_Level result = ProjectOSMatchLevel_NoMatch;
     if (string_match(str, this_os_str)){
         result = ProjectOSMatchLevel_ActiveMatch;
@@ -205,7 +202,7 @@ prj_parse_v1_os_match(String_Const_u8 str, String_Const_u8 this_os_str){
 }
 
 function Project*
-prj_parse_from_v1_config_data(Application_Links *app, Arena *arena, String_Const_u8 root_dir, Config *parsed){
+prj_parse_from_v1_config_data(Application_Links *app, Arena *arena, String8 root_dir, Config *parsed){
     Project *project = push_array_zero(arena, Project, 1);
     
     // Set new project directory
@@ -213,7 +210,7 @@ prj_parse_from_v1_config_data(Application_Links *app, Arena *arena, String_Const
     
     // project_name
     {
-        String_Const_u8 str = {};
+        String8 str = {};
         if (config_string_var(parsed, "project_name", 0, &str)){
             project->name = push_string_copy(arena, str);
         }
@@ -247,7 +244,7 @@ prj_parse_from_v1_config_data(Application_Links *app, Arena *arena, String_Const
                 
                 Config_Compound *paths = 0;
                 if (config_compound_compound_member(parsed, paths_option, "paths", 0, &paths)){
-                    String_Const_u8 str = {};
+                    String8 str = {};
                     if (config_compound_string_member(parsed, paths_option, "os", 1, &str)){
                         Project_OS_Match_Level r = prj_parse_v1_os_match(str, string_u8_litexpr(OS_NAME));
                         if (r == ProjectOSMatchLevel_ActiveMatch){
@@ -280,7 +277,7 @@ prj_parse_from_v1_config_data(Application_Links *app, Arena *arena, String_Const
                     dst->recursive = true;
                     dst->relative = true;
                     
-                    String_Const_u8 str = {};
+                    String8 str = {};
                     if (config_compound_string_member(parsed, src, "path", 0, &str)){
                         dst->path = push_string_copy(arena, str);
                     }
@@ -314,12 +311,12 @@ prj_parse_from_v1_config_data(Application_Links *app, Arena *arena, String_Const
                 Config_Get_Result cmd_result = {};
                 Config_Compound *cmd_set = 0;
                 u8 *cmd_pos = 0;
-                String_Const_u8 cmd_str = {};
-                String_Const_u8 out = {};
+                String8 cmd_str = {};
+                String8 out = {};
                 b32 footer_panel = false;
                 b32 save_dirty_files = true;
                 b32 cursor_at_end = false;
-                String_Const_u8 name = {};
+                String8 name = {};
                 
                 if (!config_compound_string_member(parsed, src, "name", 0, &name)){
                     can_emit_command = false;
@@ -349,9 +346,9 @@ prj_parse_from_v1_config_data(Application_Links *app, Arena *arena, String_Const
                     }
                     Config_Compound *cmd_option = result.get.compound;
                     
-                    String_Const_u8 cmd = {};
+                    String8 cmd = {};
                     if (config_compound_string_member(parsed, cmd_option, "cmd", 0, &cmd)){
-                        String_Const_u8 str = {};
+                        String8 str = {};
                         if (config_compound_string_member(parsed, cmd_option, "os", 1, &str)){
                             Project_OS_Match_Level r = prj_parse_v1_os_match(str, string_u8_litexpr(OS_NAME));
                             if (r == ProjectOSMatchLevel_ActiveMatch){
@@ -396,7 +393,7 @@ prj_parse_from_v1_config_data(Application_Links *app, Arena *arena, String_Const
     // fkey_command
     {
         for (i32 i = 1; i <= 16; ++i){
-            String_Const_u8 name = {};
+            String8 name = {};
             i32 index = -1;
             if (config_string_var(parsed, "fkey_command", i, &name)){
                 i32 count = project->command_array.count;
@@ -425,10 +422,10 @@ project_deep_copy__pattern_list(Arena *arena, Match_Pattern_List *src_list, Matc
         sll_queue_push(dst_list->first, dst_list->last, dst_node);
         dst_list->count += 1;
         
-        for (Node_String_Const_u8 *node = src_node->pattern.absolutes.first;
+        for (String8Node *node = src_node->pattern.absolutes.first;
              node != 0;
              node = node->next){
-            String_Const_u8 string = push_string_copy(arena, node->string);
+            String8 string = push_string_copy(arena, node->string);
             string_list_push(arena, &dst_node->pattern.absolutes, string);
         }
     }
@@ -497,13 +494,13 @@ project_deep_copy(Arena *arena, Project *project){
 }
 
 // NOTE(allen): string list join ("flatten") doesn't really work... :(
-function String_Const_u8
-prj_join_pattern_string(Arena *arena, List_String_Const_u8 list){
-    String_Const_u8 pattern_string = {};
+function String8
+prj_join_pattern_string(Arena *arena, String8List list){
+    String8 pattern_string = {};
     pattern_string.size = list.total_size + list.node_count - 1;
     pattern_string.str = push_array(arena, u8, pattern_string.size + 1);
     u8 *ptr = pattern_string.str;
-    Node_String_Const_u8 *node = list.first;
+    String8Node *node = list.first;
     if (node != 0){
         for (;;){
             block_copy(ptr, node->string.str, node->string.size);
@@ -520,9 +517,9 @@ prj_join_pattern_string(Arena *arena, List_String_Const_u8 list){
     return(pattern_string);
 }
 
-function String_Const_u8
-prj_sanitize_string(Arena *arena, String_Const_u8 string){
-    String_Const_u8 result = {};
+function String8
+prj_sanitize_string(Arena *arena, String8 string){
+    String8 result = {};
     
     if (string.size > 0){
         result.size = string.size;
@@ -581,7 +578,7 @@ prj_version_1_to_version_2(Application_Links *app, Config *parsed, Project *proj
     Variable_Handle proj_var = vars_new_variable(vars_get_root(), project_id, vars_save_string(parsed->file_name));
     
     if (parsed->version != 0){
-        String_Const_u8 version_str = push_stringf(scratch, "%d", *parsed->version);
+        String8 version_str = push_stringf(scratch, "%d", *parsed->version);
         vars_new_variable(proj_var, version_id, vars_save_string(version_str));
     }
     
@@ -606,7 +603,7 @@ prj_version_1_to_version_2(Application_Links *app, Config *parsed, Project *proj
         for (Match_Pattern_Node *node = pattern_var->list.first;
              node != 0;
              node = node->next, i += 1){
-            String_Const_u8 pattern_string = prj_join_pattern_string(scratch, node->pattern.absolutes);
+            String8 pattern_string = prj_join_pattern_string(scratch, node->pattern.absolutes);
             String_ID key = vars_save_string(push_stringf(scratch, "%d", i));
             String_ID pattern_id = vars_save_string(pattern_string);
             vars_new_variable(patterns, key, pattern_id);
@@ -634,7 +631,7 @@ prj_version_1_to_version_2(Application_Links *app, Config *parsed, Project *proj
         i32 count = project->command_array.count;
         Project_Command *cmd = project->command_array.commands;
         for (i32 i = 0; i < count; i += 1, cmd += 1){
-            String_Const_u8 cmd_name = prj_sanitize_string(scratch, cmd->name);
+            String8 cmd_name = prj_sanitize_string(scratch, cmd->name);
             Variable_Handle cmd_var = vars_new_variable(cmd_list_var, vars_save_string(cmd_name));
             vars_new_variable(cmd_var, os_id, vars_save_string(cmd->cmd));
             vars_new_variable(cmd_var, out_id, vars_save_string(cmd->out));
@@ -652,7 +649,7 @@ prj_version_1_to_version_2(Application_Links *app, Config *parsed, Project *proj
             if (0 <= cmd_index && cmd_index < project->command_array.count){
                 Project_Command *cmd = project->command_array.commands + cmd_index;
                 if (cmd->name.size > 0){
-                    String_Const_u8 cmd_name = prj_sanitize_string(scratch, cmd->name);
+                    String8 cmd_name = prj_sanitize_string(scratch, cmd->name);
                     String_ID key = vars_save_string(push_stringf(scratch, "%d", i));
                     String_ID val = vars_save_string(cmd_name);
                     vars_new_variable(fkeys_var, key, val);
@@ -664,317 +661,30 @@ prj_version_1_to_version_2(Application_Links *app, Config *parsed, Project *proj
     return(proj_var);
 }
 
-function String_Const_u8
-prj_path_from_project(Arena *arena, Variable_Handle project){
-    String_Const_u8 project_full_path = vars_string_from_var(arena, project);
-    String_Const_u8 project_dir = string_remove_last_folder(project_full_path);
-    return(project_dir);
-}
-
-function void
-prj_exec_command(Application_Links *app, Variable_Handle cmd_var){
-    Scratch_Block scratch(app);
-    
-    String_ID os_id = vars_save_string_lit(OS_NAME);
-    
-    String_Const_u8 cmd = vars_string_from_var(scratch, vars_read_key(cmd_var, os_id));
-    if (cmd.size > 0){
-        String_ID out_id = vars_save_string_lit("out");
-        String_ID footer_panel_id = vars_save_string_lit("footer_panel");
-        String_ID save_dirty_files_id = vars_save_string_lit("save_dirty_files");
-        String_ID cursor_at_end_id = vars_save_string_lit("cursor_at_end");
-        
-        b32 save_dirty_files = vars_b32_from_var(vars_read_key(cmd_var, save_dirty_files_id));
-        if (save_dirty_files){
-            save_all_dirty_buffers(app);
-        }
-        
-        u32 flags = CLI_OverlapWithConflict|CLI_SendEndSignal;
-        b32 cursor_at_end = vars_b32_from_var(vars_read_key(cmd_var, cursor_at_end_id));
-        if (cursor_at_end){
-            flags |= CLI_CursorAtEnd;
-        }
-        
-        View_ID view = 0;
-        Buffer_Identifier buffer_id = {};
-        b32 set_fancy_font = false;
-        String_Const_u8 out = vars_string_from_var(scratch, vars_read_key(cmd_var, out_id));
-        if (out.size > 0){
-            buffer_id = buffer_identifier(out);
-            
-            b32 footer_panel = vars_b32_from_var(vars_read_key(cmd_var, footer_panel_id));
-            if (footer_panel){
-                view = get_or_open_build_panel(app);
-                if (string_match(out, string_u8_litexpr("*compilation*"))){
-                    set_fancy_font = true;
-                }
-            }
-            else{
-                Buffer_ID buffer = buffer_identifier_to_id(app, buffer_id);
-                view = get_first_view_with_buffer(app, buffer);
-                if (view == 0){
-                    view = get_active_view(app, Access_Always);
-                }
-            }
-            
-            block_zero_struct(&prev_location);
-            lock_jump_buffer(app, out);
-        }
-        else{
-            // TODO(allen): fix the exec_system_command call so it can take a null buffer_id.
-            buffer_id = buffer_identifier(string_u8_litexpr("*dump*"));
-        }
-        
-        Variable_Handle command_list_var = vars_parent(cmd_var);
-        Variable_Handle prj_var = vars_parent(command_list_var);
-        String_Const_u8 prj_dir = prj_path_from_project(scratch, prj_var);
-        exec_system_command(app, view, buffer_id, prj_dir, cmd, flags);
-        if (set_fancy_font){
-            set_fancy_compilation_buffer_font(app);
-        }
-    }
-}
-
-function Variable_Handle
-prj_command_from_name(Application_Links *app, String_Const_u8 cmd_name){
-    Scratch_Block scratch(app);
-    // TODO(allen): fallback for multiple stages of reading
-    Variable_Handle cmd_list = def_get_config_var(vars_save_string_lit("commands"));
-    Variable_Handle cmd = vars_read_key(cmd_list, vars_save_string(cmd_name));
-    return(cmd);
-}
-
-function void
-prj_exec_command_name(Application_Links *app, String_Const_u8 cmd_name){
-    Scratch_Block scratch(app);
-    Variable_Handle cmd = prj_command_from_name(app, cmd_name);
-    prj_exec_command(app, cmd);
-}
-
-function void
-prj_exec_command_fkey_index(Application_Links *app, i32 fkey_index){
-    // TODO(allen): ideally if one fkey_command is missing this index the fallback
-    // can be continued.
-    Variable_Handle fkeys = def_get_config_var(vars_save_string_lit("fkey_command"));
-    
-    // TODO(allen): Ideally I could just pass fkey_index right to vars_read_key
-    // in a case like this.
-    Scratch_Block scratch(app);
-    String_Const_u8 fkey_index_str = push_stringf(scratch, "%d", fkey_index);
-    String_ID fkey_index_id = vars_save_string(fkey_index_str);
-    Variable_Handle cmd_name_var = vars_read_key(fkeys, fkey_index_id);
-    String_Const_u8 cmd_name = vars_string_from_var(scratch, cmd_name_var);
-    prj_exec_command_name(app, cmd_name);
-}
-
 ////////////////////////////////
-
-CUSTOM_COMMAND_SIG(close_all_code)
-CUSTOM_DOC("Closes any buffer with a filename ending with an extension configured to be recognized as a code file type.")
-{
-    Scratch_Block scratch(app);
-    String_Const_u8 treat_as_code = def_get_config_string(scratch, vars_save_string_lit("treat_as_code"));
-    String_Const_u8_Array extensions = parse_extension_line_to_extension_list(app, scratch, treat_as_code);
-    prj_close_files_with_ext(app, extensions);
-}
-
-CUSTOM_COMMAND_SIG(open_all_code)
-CUSTOM_DOC("Open all code in the current directory. File types are determined by extensions. An extension is considered code based on the extensions specified in 4coder.config.")
-{
-    Scratch_Block scratch(app);
-    String_Const_u8 treat_as_code = def_get_config_string(scratch, vars_save_string_lit("treat_as_code"));
-    String_Const_u8_Array extensions = parse_extension_line_to_extension_list(app, scratch, treat_as_code);
-    prj_open_all_files_with_ext_in_hot(app, extensions, 0);
-}
-
-CUSTOM_COMMAND_SIG(open_all_code_recursive)
-CUSTOM_DOC("Works as open_all_code but also runs in all subdirectories.")
-{
-    Scratch_Block scratch(app);
-    String_Const_u8 treat_as_code = def_get_config_string(scratch, vars_save_string_lit("treat_as_code"));
-    String_Const_u8_Array extensions = parse_extension_line_to_extension_list(app, scratch, treat_as_code);
-    prj_open_all_files_with_ext_in_hot(app, extensions, OpenAllFilesFlag_Recursive);
-}
-
-///////////////////////////////
-
-CUSTOM_COMMAND_SIG(load_project)
-CUSTOM_DOC("Looks for a project.4coder file in the current directory and tries to load it.  Looks in parent directories until a project file is found or there are no more parents.")
-{
-    ProfileScope(app, "load project");
-    save_all_dirty_buffers(app);
-    Scratch_Block scratch(app);
-    
-    // NOTE(allen): Load the project file from the hot directory
-    String_Const_u8 project_path = push_hot_directory(app, scratch);
-    File_Name_Data dump = dump_file_search_up_path(app, scratch, project_path, string_u8_litexpr("project.4coder"));
-    String_Const_u8 project_root = string_remove_last_folder(dump.file_name);
-    
-    if (dump.data.str == 0){
-        print_message(app, string_u8_litexpr("Did not find project.4coder.\n"));
-    }
-    
-    // NOTE(allen): Parse config data out of project file
-    Config *config_parse = 0;
-    Variable_Handle proj_var = vars_get_nil();
-    if (dump.data.str != 0){
-        Token_Array array = token_array_from_text(app, scratch, dump.data);
-        if (array.tokens != 0){
-            config_parse = def_config_parse(app, scratch, dump.file_name, dump.data, array);
-            if (config_parse != 0){
-                i32 version = 0;
-                if (config_parse->version != 0){
-                    version = *config_parse->version;
-                }
-                
-                switch (version){
-                    case 0:
-                    case 1:
-                    {
-                        Project *project = prj_parse_from_v1_config_data(app, scratch, project_root, config_parse);
-                        proj_var = prj_version_1_to_version_2(app, config_parse, project);
-                    }break;
-                    default:
-                    {
-                        proj_var = def_fill_var_from_config(app, vars_get_root(), vars_save_string_lit("prj_config"), config_parse);
-                    }break;
-                }
-                
-            }
-        }
-    }
-    
-    // NOTE(allen): Print Project
-    if (!vars_is_nil(proj_var)){
-        vars_print(app, proj_var);
-        print_message(app, string_u8_litexpr("\n"));
-    }
-    
-    // NOTE(allen): Print Errors
-    if (config_parse != 0){
-        String_Const_u8 error_text = config_stringize_errors(app, scratch, config_parse);
-        if (error_text.size > 0){
-            print_message(app, string_u8_litexpr("Project errors:\n"));
-            print_message(app, error_text);
-            print_message(app, string_u8_litexpr("\n"));
-        }
-    }
-    
-    // NOTE(allen): Open All Project Files
-    Variable_Handle load_paths_var = vars_read_key(proj_var, vars_save_string_lit("load_paths"));
-    Variable_Handle load_paths_os_var = vars_read_key(load_paths_var, vars_save_string_lit(OS_NAME));
-    
-    String_ID path_id = vars_save_string_lit("path");
-    String_ID recursive_id = vars_save_string_lit("recursive");
-    String_ID relative_id = vars_save_string_lit("relative");
-    
-    Variable_Handle whitelist_var = vars_read_key(proj_var, vars_save_string_lit("patterns"));
-    Variable_Handle blacklist_var = vars_read_key(proj_var, vars_save_string_lit("blacklist_patterns"));
-    
-    Match_Pattern_List whitelist = prj_pattern_list_from_var(scratch, whitelist_var);
-    Match_Pattern_List blacklist = prj_pattern_list_from_var(scratch, blacklist_var);
-    
-    for (Variable_Handle load_path_var = vars_first_child(load_paths_os_var);
-         !vars_is_nil(load_path_var);
-         load_path_var = vars_next_sibling(load_path_var)){
-        Variable_Handle path_var = vars_read_key(load_path_var, path_id);
-        Variable_Handle recursive_var = vars_read_key(load_path_var, recursive_id);
-        Variable_Handle relative_var = vars_read_key(load_path_var, relative_id);
-        
-        String_Const_u8 path = vars_string_from_var(scratch, path_var);
-        b32 recursive = vars_b32_from_var(recursive_var);
-        b32 relative = vars_b32_from_var(relative_var);
-        
-        
-        u32 flags = 0;
-        if (recursive){
-            flags |= OpenAllFilesFlag_Recursive;
-        }
-        
-        String_Const_u8 file_dir = path;
-        if (relative){
-            String_Const_u8 prj_dir = prj_path_from_project(scratch, proj_var);
-            
-            List_String_Const_u8 file_dir_list = {};
-            string_list_push(scratch, &file_dir_list, prj_dir);
-            string_list_push_overlap(scratch, &file_dir_list, '/', path);
-            string_list_push_overlap(scratch, &file_dir_list, '/', SCu8());
-            file_dir = string_list_flatten(scratch, file_dir_list, StringFill_NullTerminate);
-        }
-        
-        prj_open_files_pattern_filter(app, file_dir, whitelist, blacklist, flags);
-    }
-    
-    // NOTE(allen): Set Window Title
-    Variable_Handle proj_name_var = vars_read_key(proj_var, vars_save_string_lit("project_name"));
-    String_ID proj_name_id = vars_key_id_from_var(proj_var);
-    if (proj_name_id != 0){
-        String_Const_u8 proj_name = vars_read_string(scratch, proj_name_id);
-        String_Const_u8 title = push_u8_stringf(scratch, "4coder project: %.*s", string_expand(proj_name));
-        set_window_title(app, title);
-    }
-}
-
-CUSTOM_COMMAND_SIG(project_fkey_command)
-CUSTOM_DOC("Run an 'fkey command' configured in a project.4coder file.  Determines the index of the 'fkey command' by which function key or numeric key was pressed to trigger the command.")
-{
-    ProfileScope(app, "project fkey command");
-    User_Input input = get_current_input(app);
-    b32 got_ind = false;
-    i32 ind = 0;
-    if (input.event.kind == InputEventKind_KeyStroke){
-        if (KeyCode_F1 <= input.event.key.code && input.event.key.code <= KeyCode_F16){
-            ind = (input.event.key.code - KeyCode_F1);
-            got_ind = true;
-        }
-        else if (KeyCode_1 <= input.event.key.code && input.event.key.code <= KeyCode_9){
-            ind = (input.event.key.code - '1');
-            got_ind = true;
-        }
-        else if (input.event.key.code == KeyCode_0){
-            ind = 9;
-            got_ind = true;
-        }
-        if (got_ind){
-            prj_exec_command_fkey_index(app, ind);
-        }
-    }
-}
-
-CUSTOM_COMMAND_SIG(project_go_to_root_directory)
-CUSTOM_DOC("Changes 4coder's hot directory to the root directory of the currently loaded project. With no loaded project nothing hapepns.")
-{
-    Scratch_Block scratch(app);
-    Variable_Handle prj_var = vars_read_key(vars_get_root(), vars_save_string_lit("prj_config"));
-    String_Const_u8 prj_dir = prj_path_from_project(scratch, prj_var);
-    if (prj_dir.size > 0){
-        set_hot_directory(app, prj_dir);
-    }
-}
-
-///////////////////////////////
+// NOTE(allen): Project Files
 
 function Project_Setup_Status
-project_is_setup(Application_Links *app, String_Const_u8 script_path, String_Const_u8 script_file){
+prj_file_is_setup(Application_Links *app, String8 script_path, String8 script_file){
     Project_Setup_Status result = {};
     {
         Scratch_Block scratch(app);
-        String_Const_u8 bat_path = push_u8_stringf(scratch, "%.*s/%.*s.bat",
-                                                   string_expand(script_path),
-                                                   string_expand(script_file));
+        String8 bat_path = push_u8_stringf(scratch, "%.*s/%.*s.bat",
+                                           string_expand(script_path),
+                                           string_expand(script_file));
         result.bat_exists = file_exists(app, bat_path);
     }
     {
         Scratch_Block scratch(app);
-        String_Const_u8 sh_path = push_u8_stringf(scratch, "%.*s/%.*s.sh",
-                                                  string_expand(script_path),
-                                                  string_expand(script_file));
+        String8 sh_path = push_u8_stringf(scratch, "%.*s/%.*s.sh",
+                                          string_expand(script_path),
+                                          string_expand(script_file));
         result.sh_exists = file_exists(app, sh_path);
     }
     {
         Scratch_Block scratch(app);
-        String_Const_u8 project_path = push_u8_stringf(scratch, "%.*s/project.4coder",
-                                                       string_expand(script_path));
+        String8 project_path = push_u8_stringf(scratch, "%.*s/project.4coder",
+                                               string_expand(script_path));
         result.sh_exists = file_exists(app, project_path);
     }
     result.everything_exists = (result.bat_exists && result.sh_exists && result.project_exists);
@@ -982,12 +692,12 @@ project_is_setup(Application_Links *app, String_Const_u8 script_path, String_Con
 }
 
 function Project_Key_Strings
-project_key_strings_query_user(Application_Links *app,
-                               b32 get_script_file, b32 get_code_file,
-                               u8 *script_file_space, i32 script_file_cap,
-                               u8 *code_file_space, i32 code_file_cap,
-                               u8 *output_dir_space, i32 output_dir_cap,
-                               u8 *binary_file_space, i32 binary_file_cap){
+prj_get_key_strings(Application_Links *app,
+                    b32 get_script_file, b32 get_code_file,
+                    u8 *script_file_space, i32 script_file_cap,
+                    u8 *code_file_space, i32 code_file_cap,
+                    u8 *output_dir_space, i32 output_dir_cap,
+                    u8 *binary_file_space, i32 binary_file_cap){
     Project_Key_Strings keys = {};
     
     Query_Bar_Group bar_group(app);
@@ -1038,24 +748,23 @@ project_key_strings_query_user(Application_Links *app,
 }
 
 function b32
-project_generate_bat_script(Arena *scratch, String_Const_u8 opts, String_Const_u8 compiler,
-                            String_Const_u8 script_path, String_Const_u8 script_file,
-                            String_Const_u8 code_file, String_Const_u8 output_dir, String_Const_u8 binary_file){
+prj_generate_bat(Arena *scratch, String8 opts, String8 compiler, String8 script_path, String8 script_file,
+                 String8 code_file, String8 output_dir, String8 binary_file){
     b32 success = false;
     
     Temp_Memory temp = begin_temp(scratch);
     
-    String_Const_u8 cf = push_string_copy(scratch, code_file);
-    String_Const_u8 od = push_string_copy(scratch, output_dir);
-    String_Const_u8 bf = push_string_copy(scratch, binary_file);
+    String8 cf = push_string_copy(scratch, code_file);
+    String8 od = push_string_copy(scratch, output_dir);
+    String8 bf = push_string_copy(scratch, binary_file);
     
     cf = string_mod_replace_character(cf, '/', '\\');
     od = string_mod_replace_character(od, '/', '\\');
     bf = string_mod_replace_character(bf, '/', '\\');
     
-    String_Const_u8 file_name = push_u8_stringf(scratch, "%.*s/%.*s.bat",
-                                                string_expand(script_path),
-                                                string_expand(script_file));
+    String8 file_name = push_u8_stringf(scratch, "%.*s/%.*s.bat",
+                                        string_expand(script_path),
+                                        string_expand(script_file));
     
     FILE *bat_script = fopen((char*)file_name.str, "wb");
     if (bat_script != 0){
@@ -1076,20 +785,18 @@ project_generate_bat_script(Arena *scratch, String_Const_u8 opts, String_Const_u
 }
 
 function b32
-project_generate_sh_script(Arena *scratch, String_Const_u8 opts, String_Const_u8 compiler,
-                           String_Const_u8 script_path, String_Const_u8 script_file,
-                           String_Const_u8 code_file, String_Const_u8 output_dir, String_Const_u8 binary_file){
+prj_generate_sh(Arena *scratch, String8 opts, String8 compiler, String8 script_path, String8 script_file, String8 code_file, String8 output_dir, String8 binary_file){
     b32 success = false;
     
     Temp_Memory temp = begin_temp(scratch);
     
-    String_Const_u8 cf = code_file;
-    String_Const_u8 od = output_dir;
-    String_Const_u8 bf = binary_file;
+    String8 cf = code_file;
+    String8 od = output_dir;
+    String8 bf = binary_file;
     
-    String_Const_u8 file_name = push_u8_stringf(scratch, "%.*s/%.*s.sh",
-                                                string_expand(script_path),
-                                                string_expand(script_file));
+    String8 file_name = push_u8_stringf(scratch, "%.*s/%.*s.sh",
+                                        string_expand(script_path),
+                                        string_expand(script_file));
     
     FILE *sh_script = fopen((char*)file_name.str, "wb");
     if (sh_script != 0){
@@ -1109,20 +816,20 @@ project_generate_sh_script(Arena *scratch, String_Const_u8 opts, String_Const_u8
 }
 
 function b32
-project_generate_project_4coder_file(Arena *scratch, String_Const_u8 script_path, String_Const_u8 script_file, String_Const_u8 output_dir, String_Const_u8 binary_file){
+prj_generate_project(Arena *scratch, String8 script_path, String8 script_file, String8 output_dir, String8 binary_file){
     b32 success = false;
     
     Temp_Memory temp = begin_temp(scratch);
     
-    String_Const_u8 od = output_dir;
-    String_Const_u8 bf = binary_file;
+    String8 od = output_dir;
+    String8 bf = binary_file;
     
-    String_Const_u8 od_win = string_replace(scratch, od,
-                                            string_u8_litexpr("/"), string_u8_litexpr("\\"));
-    String_Const_u8 bf_win = string_replace(scratch, bf,
-                                            string_u8_litexpr("/"), string_u8_litexpr("\\"));
+    String8 od_win = string_replace(scratch, od,
+                                    string_u8_litexpr("/"), string_u8_litexpr("\\"));
+    String8 bf_win = string_replace(scratch, bf,
+                                    string_u8_litexpr("/"), string_u8_litexpr("\\"));
     
-    String_Const_u8 file_name = push_u8_stringf(scratch, "%.*s/project.4coder", string_expand(script_path));
+    String8 file_name = push_u8_stringf(scratch, "%.*s/project.4coder", string_expand(script_path));
     
     FILE *out = fopen((char*)file_name.str, "wb");
     if (out != 0){
@@ -1177,14 +884,14 @@ project_generate_project_4coder_file(Arena *scratch, String_Const_u8 script_path
 }
 
 function void
-project_setup_scripts__generic(Application_Links *app, b32 do_project_file, b32 do_bat_script, b32 do_sh_script){
+prj_setup_scripts(Application_Links *app, b32 do_project_file, b32 do_bat_script, b32 do_sh_script){
     Scratch_Block scratch(app);
-    String_Const_u8 script_path = push_hot_directory(app, scratch);
+    String8 script_path = push_hot_directory(app, scratch);
     
     b32 needs_to_do_work = false;
     Project_Setup_Status status = {};
     if (do_project_file){
-        status = project_is_setup(app, script_path, string_u8_litexpr("build"));
+        status = prj_file_is_setup(app, script_path, string_u8_litexpr("build"));
         needs_to_do_work =
             !status.project_exists ||
             (do_bat_script && !status.bat_exists) ||
@@ -1207,11 +914,11 @@ project_setup_scripts__generic(Application_Links *app, b32 do_project_file, b32 
             (do_sh_script && !status.sh_exists);
         
         Project_Key_Strings keys = {};
-        keys = project_key_strings_query_user(app, get_script_file, get_code_file,
-                                              script_file_space, sizeof(script_file_space),
-                                              code_file_space, sizeof(code_file_space),
-                                              output_dir_space, sizeof(output_dir_space),
-                                              binary_file_space, sizeof(binary_file_space));
+        keys = prj_get_key_strings(app, get_script_file, get_code_file,
+                                   script_file_space, sizeof(script_file_space),
+                                   code_file_space, sizeof(code_file_space),
+                                   output_dir_space, sizeof(output_dir_space),
+                                   binary_file_space, sizeof(binary_file_space));
         
         if (!keys.success){
             return;
@@ -1222,18 +929,18 @@ project_setup_scripts__generic(Application_Links *app, b32 do_project_file, b32 
         }
         
         if (!do_project_file){
-            status = project_is_setup(app, script_path, keys.script_file);
+            status = prj_file_is_setup(app, script_path, keys.script_file);
         }
         
         // Generate Scripts
         if (do_bat_script){
             if (!status.bat_exists){
-                String_Const_u8 default_flags_bat = def_get_config_string(scratch, vars_save_string_lit("default_flags_bat"));
-                String_Const_u8 default_compiler_bat = def_get_config_string(scratch, vars_save_string_lit("default_compiler_bat"));
+                String8 default_flags_bat = def_get_config_string(scratch, vars_save_string_lit("default_flags_bat"));
+                String8 default_compiler_bat = def_get_config_string(scratch, vars_save_string_lit("default_compiler_bat"));
                 
-                if (!project_generate_bat_script(scratch, default_flags_bat, default_compiler_bat,
-                                                 script_path, keys.script_file,
-                                                 keys.code_file, keys.output_dir, keys.binary_file)){
+                if (!prj_generate_bat(scratch, default_flags_bat, default_compiler_bat,
+                                      script_path, keys.script_file,
+                                      keys.code_file, keys.output_dir, keys.binary_file)){
                     print_message(app, string_u8_litexpr("could not create build.bat for new project\n"));
                 }
             }
@@ -1244,11 +951,11 @@ project_setup_scripts__generic(Application_Links *app, b32 do_project_file, b32 
         
         if (do_sh_script){
             if (!status.bat_exists){
-                String_Const_u8 default_flags_sh = def_get_config_string(scratch, vars_save_string_lit("default_flags_sh"));
-                String_Const_u8 default_compiler_sh = def_get_config_string(scratch, vars_save_string_lit("default_compiler_sh"));
-                if (!project_generate_sh_script(scratch, default_flags_sh, default_compiler_sh,
-                                                script_path, keys.script_file,
-                                                keys.code_file, keys.output_dir, keys.binary_file)){
+                String8 default_flags_sh = def_get_config_string(scratch, vars_save_string_lit("default_flags_sh"));
+                String8 default_compiler_sh = def_get_config_string(scratch, vars_save_string_lit("default_compiler_sh"));
+                if (!prj_generate_sh(scratch, default_flags_sh, default_compiler_sh,
+                                     script_path, keys.script_file,
+                                     keys.code_file, keys.output_dir, keys.binary_file)){
                     print_message(app, string_u8_litexpr("could not create build.sh for new project\n"));
                 }
             }
@@ -1259,11 +966,7 @@ project_setup_scripts__generic(Application_Links *app, b32 do_project_file, b32 
         
         if (do_project_file){
             if (!status.project_exists){
-                if (!project_generate_project_4coder_file(scratch,
-                                                          script_path,
-                                                          keys.script_file,
-                                                          keys.output_dir,
-                                                          keys.binary_file)){
+                if (!prj_generate_project(scratch, script_path, keys.script_file, keys.output_dir, keys.binary_file)){
                     print_message(app, string_u8_litexpr("could not create project.4coder for new project\n"));
                 }
             }
@@ -1279,35 +982,114 @@ project_setup_scripts__generic(Application_Links *app, b32 do_project_file, b32 
     }
 }
 
-CUSTOM_COMMAND_SIG(setup_new_project)
-CUSTOM_DOC("Queries the user for several configuration options and initializes a new 4coder project with build scripts for every OS.")
-{
-    project_setup_scripts__generic(app, true, true, true);
-    load_project(app);
-}
+////////////////////////////////
+// NOTE(allen): Project Operations
 
-CUSTOM_COMMAND_SIG(setup_build_bat)
-CUSTOM_DOC("Queries the user for several configuration options and initializes a new build batch script.")
-{
-    project_setup_scripts__generic(app, false, true, false);
+function void
+prj_exec_command(Application_Links *app, Variable_Handle cmd_var){
+    Scratch_Block scratch(app);
+    
+    String_ID os_id = vars_save_string_lit(OS_NAME);
+    
+    String8 cmd = vars_string_from_var(scratch, vars_read_key(cmd_var, os_id));
+    if (cmd.size > 0){
+        String_ID out_id = vars_save_string_lit("out");
+        String_ID footer_panel_id = vars_save_string_lit("footer_panel");
+        String_ID save_dirty_files_id = vars_save_string_lit("save_dirty_files");
+        String_ID cursor_at_end_id = vars_save_string_lit("cursor_at_end");
+        
+        b32 save_dirty_files = vars_b32_from_var(vars_read_key(cmd_var, save_dirty_files_id));
+        if (save_dirty_files){
+            save_all_dirty_buffers(app);
+        }
+        
+        u32 flags = CLI_OverlapWithConflict|CLI_SendEndSignal;
+        b32 cursor_at_end = vars_b32_from_var(vars_read_key(cmd_var, cursor_at_end_id));
+        if (cursor_at_end){
+            flags |= CLI_CursorAtEnd;
+        }
+        
+        View_ID view = 0;
+        Buffer_Identifier buffer_id = {};
+        b32 set_fancy_font = false;
+        String8 out = vars_string_from_var(scratch, vars_read_key(cmd_var, out_id));
+        if (out.size > 0){
+            buffer_id = buffer_identifier(out);
+            
+            b32 footer_panel = vars_b32_from_var(vars_read_key(cmd_var, footer_panel_id));
+            if (footer_panel){
+                view = get_or_open_build_panel(app);
+                if (string_match(out, string_u8_litexpr("*compilation*"))){
+                    set_fancy_font = true;
+                }
+            }
+            else{
+                Buffer_ID buffer = buffer_identifier_to_id(app, buffer_id);
+                view = get_first_view_with_buffer(app, buffer);
+                if (view == 0){
+                    view = get_active_view(app, Access_Always);
+                }
+            }
+            
+            block_zero_struct(&prev_location);
+            lock_jump_buffer(app, out);
+        }
+        else{
+            // TODO(allen): fix the exec_system_command call so it can take a null buffer_id.
+            buffer_id = buffer_identifier(string_u8_litexpr("*dump*"));
+        }
+        
+        Variable_Handle command_list_var = vars_parent(cmd_var);
+        Variable_Handle prj_var = vars_parent(command_list_var);
+        String8 prj_dir = prj_path_from_project(scratch, prj_var);
+        exec_system_command(app, view, buffer_id, prj_dir, cmd, flags);
+        if (set_fancy_font){
+            set_fancy_compilation_buffer_font(app);
+        }
+    }
 }
-
-CUSTOM_COMMAND_SIG(setup_build_sh)
-CUSTOM_DOC("Queries the user for several configuration options and initializes a new build shell script.")
-{
-    project_setup_scripts__generic(app, false, false, true);
-}
-
-CUSTOM_COMMAND_SIG(setup_build_bat_and_sh)
-CUSTOM_DOC("Queries the user for several configuration options and initializes a new build batch script.")
-{
-    project_setup_scripts__generic(app, false, true, true);
-}
-
-///////////////////////////////
 
 function Variable_Handle
-prj_cmd_from_user(Application_Links *app, Variable_Handle prj_var, String_Const_u8 query){
+prj_command_from_name(Application_Links *app, String8 cmd_name){
+    Scratch_Block scratch(app);
+    // TODO(allen): fallback for multiple stages of reading
+    Variable_Handle cmd_list = def_get_config_var(vars_save_string_lit("commands"));
+    Variable_Handle cmd = vars_read_key(cmd_list, vars_save_string(cmd_name));
+    return(cmd);
+}
+
+function void
+prj_exec_command_name(Application_Links *app, String8 cmd_name){
+    Scratch_Block scratch(app);
+    Variable_Handle cmd = prj_command_from_name(app, cmd_name);
+    prj_exec_command(app, cmd);
+}
+
+function void
+prj_exec_command_fkey_index(Application_Links *app, i32 fkey_index){
+    // TODO(allen): ideally if one fkey_command is missing this index the fallback
+    // can be continued.
+    Variable_Handle fkeys = def_get_config_var(vars_save_string_lit("fkey_command"));
+    
+    // TODO(allen): Ideally I could just pass fkey_index right to vars_read_key
+    // in a case like this.
+    Scratch_Block scratch(app);
+    String8 fkey_index_str = push_stringf(scratch, "%d", fkey_index);
+    String_ID fkey_index_id = vars_save_string(fkey_index_str);
+    Variable_Handle cmd_name_var = vars_read_key(fkeys, fkey_index_id);
+    String8 cmd_name = vars_string_from_var(scratch, cmd_name_var);
+    prj_exec_command_name(app, cmd_name);
+}
+
+function String8
+prj_path_from_project(Arena *arena, Variable_Handle project){
+    String8 project_full_path = vars_string_from_var(arena, project);
+    String8 project_dir = string_remove_last_folder(project_full_path);
+    return(project_dir);
+}
+
+function Variable_Handle
+prj_cmd_from_user(Application_Links *app, Variable_Handle prj_var, String8 query){
     Scratch_Block scratch(app);
     Lister_Block lister(app, scratch);
     lister_set_query(lister, query);
@@ -1321,8 +1103,8 @@ prj_cmd_from_user(Application_Links *app, Variable_Handle prj_var, String_Const_
          cmd = vars_next_sibling(cmd)){
         Variable_Handle os_cmd = vars_read_key(cmd, os_id);
         if (!vars_is_nil(os_cmd)){
-            String_Const_u8 cmd_name = vars_key_from_var(scratch, cmd);
-            String_Const_u8 os_cmd_str = vars_string_from_var(scratch, os_cmd);
+            String8 cmd_name = vars_key_from_var(scratch, cmd);
+            String8 os_cmd_str = vars_string_from_var(scratch, os_cmd);
             lister_add_item(lister, cmd_name, os_cmd_str, cmd.ptr, 0);
         }
     }
@@ -1338,32 +1120,213 @@ prj_cmd_from_user(Application_Links *app, Variable_Handle prj_var, String_Const_
     return(result);
 }
 
-function Variable_Handle
-get_project_command_from_user(Application_Links *app, Project *project, String_Const_u8 query){
-    Variable_Handle result = vars_get_nil();
-    if (project != 0){
-        Scratch_Block scratch(app);
-        Lister_Block lister(app, scratch);
-        lister_set_query(lister, query);
-        lister_set_default_handlers(lister);
-        
-        Project_Command *proj_cmd = project->command_array.commands;
-        i32 count = project->command_array.count;
-        for (i32 i = 0; i < count; i += 1, proj_cmd += 1){
-            lister_add_item(lister, proj_cmd->name, proj_cmd->cmd, proj_cmd, 0);
-        }
-        
-        Lister_Result l_result = run_lister(app, lister);
-        if (!l_result.canceled){
-            Project_Command *result_proj_cmd = (Project_Command*)l_result.user_data;
-            if (result_proj_cmd != 0){
-                String_Const_u8 cmd_name = prj_sanitize_string(scratch, result_proj_cmd->name);
-                result = prj_command_from_name(app, cmd_name);
+////////////////////////////////
+// NOTE(allen): Commands
+
+CUSTOM_COMMAND_SIG(close_all_code)
+CUSTOM_DOC("Closes any buffer with a filename ending with an extension configured to be recognized as a code file type.")
+{
+    Scratch_Block scratch(app);
+    String8 treat_as_code = def_get_config_string(scratch, vars_save_string_lit("treat_as_code"));
+    String8Array extensions = parse_extension_line_to_extension_list(app, scratch, treat_as_code);
+    prj_close_files_with_ext(app, extensions);
+}
+
+CUSTOM_COMMAND_SIG(open_all_code)
+CUSTOM_DOC("Open all code in the current directory. File types are determined by extensions. An extension is considered code based on the extensions specified in 4coder.config.")
+{
+    Scratch_Block scratch(app);
+    String8 treat_as_code = def_get_config_string(scratch, vars_save_string_lit("treat_as_code"));
+    String8Array extensions = parse_extension_line_to_extension_list(app, scratch, treat_as_code);
+    prj_open_all_files_with_ext_in_hot(app, extensions, 0);
+}
+
+CUSTOM_COMMAND_SIG(open_all_code_recursive)
+CUSTOM_DOC("Works as open_all_code but also runs in all subdirectories.")
+{
+    Scratch_Block scratch(app);
+    String8 treat_as_code = def_get_config_string(scratch, vars_save_string_lit("treat_as_code"));
+    String8Array extensions = parse_extension_line_to_extension_list(app, scratch, treat_as_code);
+    prj_open_all_files_with_ext_in_hot(app, extensions, PrjOpenFileFlag_Recursive);
+}
+
+CUSTOM_COMMAND_SIG(load_project)
+CUSTOM_DOC("Looks for a project.4coder file in the current directory and tries to load it.  Looks in parent directories until a project file is found or there are no more parents.")
+{
+    ProfileScope(app, "load project");
+    save_all_dirty_buffers(app);
+    Scratch_Block scratch(app);
+    
+    // NOTE(allen): Load the project file from the hot directory
+    String8 project_path = push_hot_directory(app, scratch);
+    File_Name_Data dump = dump_file_search_up_path(app, scratch, project_path, string_u8_litexpr("project.4coder"));
+    String8 project_root = string_remove_last_folder(dump.file_name);
+    
+    if (dump.data.str == 0){
+        print_message(app, string_u8_litexpr("Did not find project.4coder.\n"));
+    }
+    
+    // NOTE(allen): Parse config data out of project file
+    Config *config_parse = 0;
+    Variable_Handle proj_var = vars_get_nil();
+    if (dump.data.str != 0){
+        Token_Array array = token_array_from_text(app, scratch, dump.data);
+        if (array.tokens != 0){
+            config_parse = def_config_parse(app, scratch, dump.file_name, dump.data, array);
+            if (config_parse != 0){
+                i32 version = 0;
+                if (config_parse->version != 0){
+                    version = *config_parse->version;
+                }
+                
+                switch (version){
+                    case 0:
+                    case 1:
+                    {
+                        Project *project = prj_parse_from_v1_config_data(app, scratch, project_root, config_parse);
+                        proj_var = prj_version_1_to_version_2(app, config_parse, project);
+                    }break;
+                    default:
+                    {
+                        proj_var = def_fill_var_from_config(app, vars_get_root(), vars_save_string_lit("prj_config"), config_parse);
+                    }break;
+                }
+                
             }
         }
     }
     
-    return(result);
+    // NOTE(allen): Print Project
+    if (!vars_is_nil(proj_var)){
+        vars_print(app, proj_var);
+        print_message(app, string_u8_litexpr("\n"));
+    }
+    
+    // NOTE(allen): Print Errors
+    if (config_parse != 0){
+        String8 error_text = config_stringize_errors(app, scratch, config_parse);
+        if (error_text.size > 0){
+            print_message(app, string_u8_litexpr("Project errors:\n"));
+            print_message(app, error_text);
+            print_message(app, string_u8_litexpr("\n"));
+        }
+    }
+    
+    // NOTE(allen): Open All Project Files
+    Variable_Handle load_paths_var = vars_read_key(proj_var, vars_save_string_lit("load_paths"));
+    Variable_Handle load_paths_os_var = vars_read_key(load_paths_var, vars_save_string_lit(OS_NAME));
+    
+    String_ID path_id = vars_save_string_lit("path");
+    String_ID recursive_id = vars_save_string_lit("recursive");
+    String_ID relative_id = vars_save_string_lit("relative");
+    
+    Variable_Handle whitelist_var = vars_read_key(proj_var, vars_save_string_lit("patterns"));
+    Variable_Handle blacklist_var = vars_read_key(proj_var, vars_save_string_lit("blacklist_patterns"));
+    
+    Match_Pattern_List whitelist = prj_pattern_list_from_var(scratch, whitelist_var);
+    Match_Pattern_List blacklist = prj_pattern_list_from_var(scratch, blacklist_var);
+    
+    for (Variable_Handle load_path_var = vars_first_child(load_paths_os_var);
+         !vars_is_nil(load_path_var);
+         load_path_var = vars_next_sibling(load_path_var)){
+        Variable_Handle path_var = vars_read_key(load_path_var, path_id);
+        Variable_Handle recursive_var = vars_read_key(load_path_var, recursive_id);
+        Variable_Handle relative_var = vars_read_key(load_path_var, relative_id);
+        
+        String8 path = vars_string_from_var(scratch, path_var);
+        b32 recursive = vars_b32_from_var(recursive_var);
+        b32 relative = vars_b32_from_var(relative_var);
+        
+        
+        u32 flags = 0;
+        if (recursive){
+            flags |= PrjOpenFileFlag_Recursive;
+        }
+        
+        String8 file_dir = path;
+        if (relative){
+            String8 prj_dir = prj_path_from_project(scratch, proj_var);
+            
+            String8List file_dir_list = {};
+            string_list_push(scratch, &file_dir_list, prj_dir);
+            string_list_push_overlap(scratch, &file_dir_list, '/', path);
+            string_list_push_overlap(scratch, &file_dir_list, '/', SCu8());
+            file_dir = string_list_flatten(scratch, file_dir_list, StringFill_NullTerminate);
+        }
+        
+        prj_open_files_pattern_filter(app, file_dir, whitelist, blacklist, flags);
+    }
+    
+    // NOTE(allen): Set Window Title
+    Variable_Handle proj_name_var = vars_read_key(proj_var, vars_save_string_lit("project_name"));
+    String_ID proj_name_id = vars_key_id_from_var(proj_var);
+    if (proj_name_id != 0){
+        String8 proj_name = vars_read_string(scratch, proj_name_id);
+        String8 title = push_u8_stringf(scratch, "4coder project: %.*s", string_expand(proj_name));
+        set_window_title(app, title);
+    }
+}
+
+CUSTOM_COMMAND_SIG(project_fkey_command)
+CUSTOM_DOC("Run an 'fkey command' configured in a project.4coder file.  Determines the index of the 'fkey command' by which function key or numeric key was pressed to trigger the command.")
+{
+    ProfileScope(app, "project fkey command");
+    User_Input input = get_current_input(app);
+    b32 got_ind = false;
+    i32 ind = 0;
+    if (input.event.kind == InputEventKind_KeyStroke){
+        if (KeyCode_F1 <= input.event.key.code && input.event.key.code <= KeyCode_F16){
+            ind = (input.event.key.code - KeyCode_F1);
+            got_ind = true;
+        }
+        else if (KeyCode_1 <= input.event.key.code && input.event.key.code <= KeyCode_9){
+            ind = (input.event.key.code - '1');
+            got_ind = true;
+        }
+        else if (input.event.key.code == KeyCode_0){
+            ind = 9;
+            got_ind = true;
+        }
+        if (got_ind){
+            prj_exec_command_fkey_index(app, ind);
+        }
+    }
+}
+
+CUSTOM_COMMAND_SIG(project_go_to_root_directory)
+CUSTOM_DOC("Changes 4coder's hot directory to the root directory of the currently loaded project. With no loaded project nothing hapepns.")
+{
+    Scratch_Block scratch(app);
+    Variable_Handle prj_var = vars_read_key(vars_get_root(), vars_save_string_lit("prj_config"));
+    String8 prj_dir = prj_path_from_project(scratch, prj_var);
+    if (prj_dir.size > 0){
+        set_hot_directory(app, prj_dir);
+    }
+}
+
+CUSTOM_COMMAND_SIG(setup_new_project)
+CUSTOM_DOC("Queries the user for several configuration options and initializes a new 4coder project with build scripts for every OS.")
+{
+    prj_setup_scripts(app, true, true, true);
+    load_project(app);
+}
+
+CUSTOM_COMMAND_SIG(setup_build_bat)
+CUSTOM_DOC("Queries the user for several configuration options and initializes a new build batch script.")
+{
+    prj_setup_scripts(app, false, true, false);
+}
+
+CUSTOM_COMMAND_SIG(setup_build_sh)
+CUSTOM_DOC("Queries the user for several configuration options and initializes a new build shell script.")
+{
+    prj_setup_scripts(app, false, false, true);
+}
+
+CUSTOM_COMMAND_SIG(setup_build_bat_and_sh)
+CUSTOM_DOC("Queries the user for several configuration options and initializes a new build batch script.")
+{
+    prj_setup_scripts(app, false, true, true);
 }
 
 CUSTOM_COMMAND_SIG(project_command_lister)
@@ -1374,7 +1337,6 @@ CUSTOM_DOC("Open a lister of all commands in the currently loaded project.")
     if (!vars_is_nil(prj_cmd)){
         prj_exec_command(app, prj_cmd);
     }
-    
 }
 
 // BOTTOM

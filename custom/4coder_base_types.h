@@ -913,6 +913,8 @@ struct String_Const_u32{
     u64 size;
 };
 
+typedef String_Const_u8 String8;
+
 struct String_Const_char_Array{
     union{
         String_Const_char *strings;
@@ -941,6 +943,8 @@ struct String_Const_u32_Array{
     };
     i32 count;
 };
+
+typedef String_Const_u8_Array String8Array;
 
 typedef i32 String_Encoding;
 enum{
@@ -1008,6 +1012,9 @@ struct List_String_Const_u32{
     u64 total_size;
     i32 node_count;
 };
+
+typedef Node_String_Const_u8 String8Node;
+typedef List_String_Const_u8 String8List;
 
 struct Node_String_Const_Any{
     Node_String_Const_Any *next;

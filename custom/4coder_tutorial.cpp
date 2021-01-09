@@ -735,7 +735,7 @@ hms_demo_tutorial_slide_8(Application_Links *app, Arena *arena){
                                    "", "interactive_switch_buffer", "see how this command encodes it's use of a lister with the call 'get_buffer_from_user'");
     
     hms_demo_tutorial_binding_line(app, arena, long_details, face,
-                                   "", "project_command_lister", "again see how this command encodes a lister with a call, this time 'get_project_command_from_user'");
+                                   "", "project_command_lister", "again see how this command encodes a lister with a call, this time 'prj_cmd_from_user'");
     
     hms_demo_tutorial_binding_line(app, arena, long_details, face,
                                    "", "setup_default_mapping", "defines the mapping of commands to bindings");
