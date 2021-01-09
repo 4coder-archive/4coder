@@ -127,6 +127,9 @@ function String8 prj_join_pattern_string(Arena *arena, String8List list);
 function String8 prj_sanitize_string(Arena *arena, String8 string);
 function Variable_Handle prj_version_1_to_version_2(Application_Links *app, Config *parsed, Prj *project);
 
+// TODO(allen): sort away the old version convert up stuff
+// TODO(allen): add in re-print stuff
+
 ////////////////////////////////
 // NOTE(allen): Project Files
 
