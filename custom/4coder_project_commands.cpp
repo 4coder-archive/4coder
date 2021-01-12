@@ -282,7 +282,7 @@ prj_generate_project(Arena *scratch, String8 script_path, String8 script_file, S
     
     FILE *out = fopen((char*)file_name.str, "wb");
     if (out != 0){
-        fprintf(out, "version(1);\n");
+        fprintf(out, "version(2);\n");
         fprintf(out, "project_name = \"%.*s\";\n", string_expand(binary_file));
         fprintf(out, "patterns = {\n");
         fprintf(out, "\"*.c\",\n");
@@ -300,24 +300,22 @@ prj_generate_project(Arena *scratch, String8 script_path, String8 script_file, S
         fprintf(out, " { \".\", .relative = true, .recursive = true, },\n");
         fprintf(out, "};\n");
         fprintf(out, "load_paths = {\n");
-        fprintf(out, " { load_paths_base, .os = \"win\", },\n");
-        fprintf(out, " { load_paths_base, .os = \"linux\", },\n");
-        fprintf(out, " { load_paths_base, .os = \"mac\", },\n");
+        fprintf(out, " .win = load_paths_base,\n");
+        fprintf(out, " .linux = load_paths_base,\n");
+        fprintf(out, " .mac = load_paths_base,\n");
         fprintf(out, "};\n");
         
         fprintf(out, "\n");
         
-        fprintf(out, "command_list = {\n");
-        fprintf(out, " { .name = \"build\",\n");
-        fprintf(out, "   .out = \"*compilation*\", .footer_panel = true, .save_dirty_files = true,\n");
-        fprintf(out, "   .cmd = { { \"%.*s.bat\" , .os = \"win\"   },\n", string_expand(script_file));
-        fprintf(out, "            { \"./%.*s.sh\", .os = \"linux\" },\n", string_expand(script_file));
-        fprintf(out, "            { \"./%.*s.sh\", .os = \"mac\"   }, }, },\n", string_expand(script_file));
-        fprintf(out, " { .name = \"run\",\n");
-        fprintf(out, "   .out = \"*run*\", .footer_panel = false, .save_dirty_files = false,\n");
-        fprintf(out, "   .cmd = { { \"%.*s\\\\%.*s\", .os = \"win\"   },\n", string_expand(od_win), string_expand(bf_win));
-        fprintf(out, "            { \"%.*s/%.*s\" , .os = \"linux\" },\n", string_expand(od), string_expand(bf));
-        fprintf(out, "            { \"%.*s/%.*s\" , .os = \"mac\"   }, }, },\n", string_expand(od), string_expand(bf));
+        fprintf(out, "commands = {\n");
+        fprintf(out, " .build = { .out = \"*compilation*\", .footer_panel = true, .save_dirty_files = true,\n");
+        fprintf(out, "   .win = \"%.*s.bat\",\n", string_expand(script_file));
+        fprintf(out, "   .linux = \"./%.*s.sh\",\n", string_expand(script_file));
+        fprintf(out, "   .mac = \"./%.*s.sh\", },\n", string_expand(script_file));
+        fprintf(out, " .run = { .out = \"*run*\", .footer_panel = false, .save_dirty_files = false,\n");
+        fprintf(out, "   .win = \"%.*s\\\\%.*s\",\n", string_expand(od_win), string_expand(bf_win));
+        fprintf(out, "   .linux = \"%.*s/%.*s\",\n", string_expand(od), string_expand(bf));
+        fprintf(out, "   .mac = \"%.*s/%.*s\", },\n", string_expand(od), string_expand(bf));
         fprintf(out, "};\n");
         
         fprintf(out, "fkey_command[1] = \"build\";\n");
@@ -655,6 +653,8 @@ CUSTOM_DOC("Works as open_all_code but also runs in all subdirectories.")
 CUSTOM_COMMAND_SIG(load_project)
 CUSTOM_DOC("Looks for a project.4coder file in the current directory and tries to load it.  Looks in parent directories until a project file is found or there are no more parents.")
 {
+    // TODO(allen): compress this _thoughtfully_
+    
     ProfileScope(app, "load project");
     save_all_dirty_buffers(app);
     Scratch_Block scratch(app);
