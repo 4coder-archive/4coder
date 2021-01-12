@@ -31,54 +31,6 @@ enum{
 };
 
 ///////////////////////////////
-// NOTE(allen): Project v0-v1 Structure
-
-struct Prj_File_Load_Path{
-    String8 path;
-    b32 recursive;
-    b32 relative;
-};
-
-struct Prj_File_Load_Path_Array{
-    Prj_File_Load_Path *paths;
-    i32 count;
-};
-
-struct Prj_Command{
-    String8 name;
-    String8 cmd;
-    String8 out;
-    b32 footer_panel;
-    b32 save_dirty_files;
-    b32 cursor_at_end;
-};
-
-struct Prj_Command_Array{
-    Prj_Command *commands;
-    i32 count;
-};
-
-struct Prj{
-    b32 loaded;
-    
-    String8 dir;
-    String8 name;
-    
-    Prj_Pattern_List pattern_list;
-    Prj_Pattern_List blacklist_pattern_list;
-    Prj_File_Load_Path_Array load_path_array;
-    Prj_Command_Array command_array;
-    
-    i32 fkey_commands[16];
-};
-
-enum Prj_OS_Match_Level{
-    PrjOSMatchLevel_NoMatch = 0,
-    PrjOSMatchLevel_PassiveMatch = 1,
-    PrjOSMatchLevel_ActiveMatch = 2,
-};
-
-///////////////////////////////
 // NOTE(allen): Project Files
 
 struct Prj_Setup_Status{
@@ -116,18 +68,6 @@ function void prj_close_files_with_ext(Application_Links *app, String8Array exte
 function void prj_open_files_pattern_filter(Application_Links *app, String8 dir, Prj_Pattern_List whitelist, Prj_Pattern_List blacklist, Prj_Open_File_Flags flags);
 function void prj_open_all_files_with_ext_in_hot(Application_Links *app, String8Array array, Prj_Open_File_Flags flags);
 
-////////////////////////////////
-// NOTE(allen): Project Parse
-
-function void prj_parse_pattern_list(Arena *arena, Config *parsed, char *root_variable_name, Prj_Pattern_List *list_out);
-function Prj_OS_Match_Level prj_parse_v1_os_match(String8 str, String8 this_os_str);
-function Prj *prj_parse_from_v1_config_data(Application_Links *app, Arena *arena, String8 root_dir, Config *parsed);
-
-function String8 prj_join_pattern_string(Arena *arena, String8List list);
-function String8 prj_sanitize_string(Arena *arena, String8 string);
-function Variable_Handle prj_version_1_to_version_2(Application_Links *app, Config *parsed, Prj *project);
-
-// TODO(allen): sort away the old version convert up stuff
 // TODO(allen): add in re-print stuff
 
 ////////////////////////////////
