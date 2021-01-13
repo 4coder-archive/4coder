@@ -68,10 +68,10 @@ function void prj_close_files_with_ext(Application_Links *app, String8Array exte
 function void prj_open_files_pattern_filter(Application_Links *app, String8 dir, Prj_Pattern_List whitelist, Prj_Pattern_List blacklist, Prj_Open_File_Flags flags);
 function void prj_open_all_files_with_ext_in_hot(Application_Links *app, String8Array array, Prj_Open_File_Flags flags);
 
-// TODO(allen): add in re-print stuff
-
 ////////////////////////////////
 // NOTE(allen): Project Files
+
+function void prj_stringize_project(Application_Links *app, Arena *arena, Variable_Handle project, String8List *out);
 
 function Prj_Setup_Status prj_file_is_setup(Application_Links *app, String8 script_path, String8 script_file);
 function b32 prj_generate_bat(Arena *scratch, String8 opts, String8 compiler, String8 script_path, String8 script_file, String8 code_file, String8 output_dir, String8 binary_file);
@@ -88,6 +88,7 @@ function Variable_Handle prj_command_from_name(Application_Links *app, String8 c
 function void            prj_exec_command_name(Application_Links *app, String8 cmd_name);
 function void            prj_exec_command_fkey_index(Application_Links *app, i32 fkey_index);
 
+function String8         prj_full_file_path_from_project(Arena *arena, Variable_Handle project);
 function String8         prj_path_from_project(Arena *arena, Variable_Handle project);
 function Variable_Handle prj_cmd_from_user(Application_Links *app, Variable_Handle prj_var, String8 query);
 

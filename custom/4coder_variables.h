@@ -35,7 +35,7 @@ struct Variable_Handle{
 
 function String_ID       vars_save_string(String_Const_u8 string);
 #define vars_save_string_lit(S) vars_save_string(string_u8_litexpr(S))
-function String_Const_u8 vars_read_string(Arena *arena, String_ID id);
+function String8         vars_read_string(Arena *arena, String_ID id);
 
 function Variable_Handle vars_get_root(void);
 function Variable_Handle vars_get_nil(void);
@@ -51,10 +51,10 @@ function Variable_Handle vars_parent(Variable_Handle var);
 
 function Variable_Handle vars_read_key(Variable_Handle var, String_ID key);
 function String_ID       vars_key_id_from_var(Variable_Handle var);
-function String_Const_u8 vars_key_from_var(Arena *arena, Variable_Handle var);
+function String8         vars_key_from_var(Arena *arena, Variable_Handle var);
 
 function String_ID       vars_string_id_from_var(Variable_Handle var);
-function String_Const_u8 vars_string_from_var(Arena *arena, Variable_Handle var);
+function String8         vars_string_from_var(Arena *arena, Variable_Handle var);
 function b32             vars_b32_from_var(Variable_Handle var);
 function u64             vars_u64_from_var(Application_Links *app, Variable_Handle var);
 

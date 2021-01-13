@@ -169,6 +169,49 @@ prj_open_all_files_with_ext_in_hot(Application_Links *app, String8Array array, P
 ////////////////////////////////
 // NOTE(allen): Project Files
 
+function void
+prj_stringize__string_list(Application_Links *app, Arena *arena, String8 name, Variable_Handle list, String8List *out){
+    Scratch_Block scratch(app, arena);
+    string_list_pushf(arena, out, "%.*s = {\n", string_expand(name));
+    for (Vars_Children(child, list)){
+        String8 child_string = vars_string_from_var(scratch, child);
+        if (child_string.size > 0){
+            // TODO(allen): escape child_string
+            string_list_pushf(arena, out, "\"%.*s\",\n", string_expand(child_string));
+        }
+    }
+    string_list_pushf(arena, out, "};\n");
+}
+
+function void
+prj_stringize_project(Application_Links *app, Arena *arena, Variable_Handle project, String8List *out){
+    Scratch_Block scratch(app, arena);
+    
+    u64 version = vars_u64_from_var(app, vars_read_key(project, vars_save_string_lit("version")));
+    version = clamp_bot(2, version);
+    string_list_pushf(arena, out, "version(%llu);\n", version);
+    
+    String8 project_name = vars_string_from_var(scratch, vars_read_key(project, vars_save_string_lit("project_name")));
+    if (project_name.size > 0){
+        // TODO(allen): escape project_name
+        string_list_pushf(arena, out, "project_name = \"%.*s\";\n", string_expand(project_name));
+    }
+    
+    string_list_push(arena, out, str8_lit("\n"));
+    
+    Variable_Handle patterns = vars_read_key(project, vars_save_string_lit("patterns"));
+    if (!vars_is_nil(patterns)){
+        prj_stringize__string_list(app, arena, str8_lit("patterns"), patterns, out);
+    }
+    
+    Variable_Handle blacklist_patterns = vars_read_key(project, vars_save_string_lit("blacklist_patterns"));
+    if (!vars_is_nil(blacklist_patterns)){
+        prj_stringize__string_list(app, arena, str8_lit("blacklist_patterns"), blacklist_patterns, out);
+    }
+    
+    string_list_push(arena, out, str8_lit("\n"));
+}
+
 function Prj_Setup_Status
 prj_file_is_setup(Application_Links *app, String8 script_path, String8 script_file){
     Prj_Setup_Status result = {};
@@ -582,8 +625,14 @@ prj_exec_command_fkey_index(Application_Links *app, i32 fkey_index){
 }
 
 function String8
-prj_path_from_project(Arena *arena, Variable_Handle project){
+prj_full_file_path_from_project(Arena *arena, Variable_Handle project){
     String8 project_full_path = vars_string_from_var(arena, project);
+    return(project_full_path);
+}
+
+function String8
+prj_path_from_project(Arena *arena, Variable_Handle project){
+    String8 project_full_path = prj_full_file_path_from_project(arena, project);
     String8 project_dir = string_remove_last_folder(project_full_path);
     return(project_dir);
 }
@@ -670,7 +719,7 @@ CUSTOM_DOC("Looks for a project.4coder file in the current directory and tries t
     
     // NOTE(allen): Parse config data out of project file
     Config *config_parse = 0;
-    Variable_Handle proj_var = vars_get_nil();
+    Variable_Handle prj_var = vars_get_nil();
     if (dump.data.str != 0){
         Token_Array array = token_array_from_text(app, scratch, dump.data);
         if (array.tokens != 0){
@@ -685,11 +734,11 @@ CUSTOM_DOC("Looks for a project.4coder file in the current directory and tries t
                     case 0:
                     case 1:
                     {
-                        proj_var = prj_v1_to_v2(app, project_root, config_parse);
+                        prj_var = prj_v1_to_v2(app, project_root, config_parse);
                     }break;
                     default:
                     {
-                        proj_var = def_fill_var_from_config(app, vars_get_root(), vars_save_string_lit("prj_config"), config_parse);
+                        prj_var = def_fill_var_from_config(app, vars_get_root(), vars_save_string_lit("prj_config"), config_parse);
                     }break;
                 }
                 
@@ -698,8 +747,8 @@ CUSTOM_DOC("Looks for a project.4coder file in the current directory and tries t
     }
     
     // NOTE(allen): Print Project
-    if (!vars_is_nil(proj_var)){
-        vars_print(app, proj_var);
+    if (!vars_is_nil(prj_var)){
+        vars_print(app, prj_var);
         print_message(app, string_u8_litexpr("\n"));
     }
     
@@ -714,15 +763,15 @@ CUSTOM_DOC("Looks for a project.4coder file in the current directory and tries t
     }
     
     // NOTE(allen): Open All Project Files
-    Variable_Handle load_paths_var = vars_read_key(proj_var, vars_save_string_lit("load_paths"));
+    Variable_Handle load_paths_var = vars_read_key(prj_var, vars_save_string_lit("load_paths"));
     Variable_Handle load_paths_os_var = vars_read_key(load_paths_var, vars_save_string_lit(OS_NAME));
     
     String_ID path_id = vars_save_string_lit("path");
     String_ID recursive_id = vars_save_string_lit("recursive");
     String_ID relative_id = vars_save_string_lit("relative");
     
-    Variable_Handle whitelist_var = vars_read_key(proj_var, vars_save_string_lit("patterns"));
-    Variable_Handle blacklist_var = vars_read_key(proj_var, vars_save_string_lit("blacklist_patterns"));
+    Variable_Handle whitelist_var = vars_read_key(prj_var, vars_save_string_lit("patterns"));
+    Variable_Handle blacklist_var = vars_read_key(prj_var, vars_save_string_lit("blacklist_patterns"));
     
     Prj_Pattern_List whitelist = prj_pattern_list_from_var(scratch, whitelist_var);
     Prj_Pattern_List blacklist = prj_pattern_list_from_var(scratch, blacklist_var);
@@ -746,7 +795,7 @@ CUSTOM_DOC("Looks for a project.4coder file in the current directory and tries t
         
         String8 file_dir = path;
         if (relative){
-            String8 prj_dir = prj_path_from_project(scratch, proj_var);
+            String8 prj_dir = prj_path_from_project(scratch, prj_var);
             
             String8List file_dir_list = {};
             string_list_push(scratch, &file_dir_list, prj_dir);
@@ -759,8 +808,8 @@ CUSTOM_DOC("Looks for a project.4coder file in the current directory and tries t
     }
     
     // NOTE(allen): Set Window Title
-    Variable_Handle proj_name_var = vars_read_key(proj_var, vars_save_string_lit("project_name"));
-    String_ID proj_name_id = vars_key_id_from_var(proj_var);
+    Variable_Handle proj_name_var = vars_read_key(prj_var, vars_save_string_lit("project_name"));
+    String_ID proj_name_id = vars_key_id_from_var(prj_var);
     if (proj_name_id != 0){
         String8 proj_name = vars_read_string(scratch, proj_name_id);
         String8 title = push_u8_stringf(scratch, "4coder project: %.*s", string_expand(proj_name));
@@ -837,6 +886,44 @@ CUSTOM_DOC("Open a lister of all commands in the currently loaded project.")
     Variable_Handle prj_cmd = prj_cmd_from_user(app, prj_var, string_u8_litexpr("Command:"));
     if (!vars_is_nil(prj_cmd)){
         prj_exec_command(app, prj_cmd);
+    }
+}
+
+CUSTOM_COMMAND_SIG(project_reprint)
+CUSTOM_DOC("Prints the current project to the file it was loaded from; prints in the most recent project file version")
+{
+    Variable_Handle prj_var = vars_read_key(vars_get_root(), vars_save_string_lit("prj_config"));
+    if (!vars_is_nil(prj_var)){
+        Scratch_Block scratch(app);
+        String8 prj_full_path = prj_full_file_path_from_project(scratch, prj_var);
+        prj_full_path = push_string_copy(scratch, prj_full_path);
+        String8 message = push_stringf(scratch, "Reprinting project file: %.*s\n", string_expand(prj_full_path));
+        print_message(app, message);
+        
+        String8List prj_string = {};
+        prj_stringize_project(app, scratch, prj_var, &prj_string);
+        
+        FILE *file = fopen((char*)prj_full_path.str, "wb");
+        if (file == 0){
+            print_message(app, str8_lit("Could not open project file\n"));
+        }
+        else{
+            for (String8Node *node = prj_string.first;
+                 node != 0;
+                 node = node->next){
+                fwrite(node->string.str, 1, node->string.size, file);
+            }
+            fclose(file);
+            print_message(app, str8_lit("Reloading project buffer\n"));
+            
+            Buffer_ID buffer = get_buffer_by_file_name(app, prj_full_path, Access_Always);
+            if (buffer != 0){
+                buffer_reopen(app, buffer, 0);
+            }
+            else{
+                create_buffer(app, prj_full_path, 0);
+            }
+        }
     }
 }
 
