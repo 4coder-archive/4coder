@@ -1,4 +1,4 @@
-version(1);
+version(2);
 project_name = "4coder";
 
 patterns = {
@@ -15,100 +15,117 @@ patterns = {
 blacklist_patterns = {
 ".*",
 };
-load_paths_only = {
- {"."},
-};
+
 load_paths = {
- { load_paths_only, .os = "win"  },
- { load_paths_only, .os = "linux"},
- { load_paths_only, .os = "mac"  },
+.win = {
+{ .path = ".", .recursive = true, .relative = true, },
+},
 };
 
-build_x64_win32 = "echo build: x64 & bin\\build.bat";
-build_x86_win32 = "echo build: x86 & bin\\build.bat /DDEV_BUILD_X86";
-build_x64_linux = "echo build: x64 & bin/build-linux.sh";
-build_x86_linux = "echo build: x86 & bin/build-linux.sh -DDEV_BUILD_X86";
-build_x64_mac = "echo build: x64 & bin/build-mac.sh";
-build_x86_mac = "echo build: x86 & bin/build-mac.sh -DDEV_BUILD_X86";
-
-command_list = {
- { .name = "build x64",
-   .out = "*compilation*", .footer_panel = true, .save_dirty_files = true,
-   .cmd = { {build_x64_win32,  .os = "win"  },
-            {build_x64_linux, .os = "linux"},
-            {build_x64_mac  , .os = "mac"  }, }, },
- 
- { .name = "build x86",
-   .out = "*compilation*", .footer_panel = true, .save_dirty_files = true,
-   .cmd = { {build_x86_win32, .os = "win"  },
-            {build_x86_linux, .os = "linux"},
-            {build_x86_mac , .os = "mac"  }, }, },
- 
- { .name = "package",
-   .out = "*compilation*", .footer_panel = false, .save_dirty_files = true,
-   .cmd = { {"echo package & bin\\package.bat"    , .os = "win"  },
-            {"echo package & bin/package-linux.sh", .os = "linux"},
-            {"echo package & bin/package-max.sh"  , .os = "mac"  }, }, },
- 
- { .name = "run one time",
-   .out = "*run*", .footer_panel = false, .save_dirty_files = false,
-   .cmd = { { "pushd ..\\build & one_time", .os = "win"   },
-            { "cd ../build && ./one_time"    , .os = "linux" },
-            { "pushd ../build && ./one_time" , .os = "mac"   }, }, },
- 
- { .name = "build custom api docs",
-   .out = "*compilation*", .footer_panel = true, .save_dirty_files = true,
-   .cmd = { { "custom\\bin\\build_one_time docs\\4ed_doc_custom_api_main.cpp ..\\build", .os = "win" },
-            { "custom/bin/build_one_time.sh docs/4ed_doc_custom_api_main.cpp ../build", .os = "linux" },
-            { "custom/bin/build_one_time.sh docs/4ed_doc_custom_api_main.cpp ../build", .os = "mac" }, }, },
- 
- { .name = "build C++ lexer generator",
-   .out = "*compilation*", .footer_panel = true, .save_dirty_files = true,
-   .cmd = { { "custom\\bin\\build_one_time custom\\languages\\4coder_cpp_lexer_gen.cpp ..\\build", .os = "win" }, }, },
- 
- { .name = "build token tester",
-   .out = "*compilation*", .footer_panel = true, .save_dirty_files = true,
-   .cmd = { { "custom\\bin\\build_one_time custom\\languages\\4coder_cpp_lexer_test.cpp ..\\build", .os = "win" }, }, },
- 
- { .name = "build system api",
-   .out = "*compilation*", .footer_panel = true, .save_dirty_files = true,
-   .cmd = { { "custom\\bin\\build_one_time 4ed_system_api.cpp ..\\build", .os = "win" }, }, },
-
- { .name = "build font api",
-   .out = "*compilation*", .footer_panel = true, .save_dirty_files = true,
-   .cmd = { { "custom\\bin\\build_one_time 4ed_font_api.cpp ..\\build", .os = "win" }, }, },
-
- { .name = "build graphics api",
-   .out = "*compilation*", .footer_panel = true, .save_dirty_files = true,
-   .cmd = { { "custom\\bin\\build_one_time 4ed_graphics_api.cpp ..\\build", .os = "win" }, }, },
-
- { .name = "build api parser",
-   .out = "*compilation*", .footer_panel = true, .save_dirty_files = true,
-   .cmd = { { "custom\\bin\\build_one_time 4ed_api_parser_main.cpp ..\\build & copy /B ..\\build\\one_time.exe ..\\build\\api_parser.exe", .os = "win" }, }, },
- 
- { .name = "build api checker",
-   .out = "*compilation*", .footer_panel = true, .save_dirty_files = true,
-   .cmd = { { "custom\\bin\\build_one_time 4ed_api_check.cpp ..\\build & copy /B ..\\build\\one_time.exe ..\\build\\api_checker.exe", .os = "win" }, }, },
- 
- { .name = "build keycode generator",
-   .out = "*compilation*", .footer_panel = true, .save_dirty_files = true,
-   .cmd = { { "custom\\bin\\build_one_time 4ed_generate_keycodes.cpp ..\\build", .os = "win" },
-            { "custom/bin/build_one_time.sh 4ed_generate_keycodes.cpp ../build", .os = "linux" }, }, },
- 
- { .name = "build site render",
-   .out = "*compilation*", .footer_panel = true, .save_dirty_files = true,
-   .cmd = { { "custom\\bin\\build_one_time site/4ed_site_render_main.cpp ..\\build", .os = "win" }, }, },
- 
- { .name = "generate custom api master list",
-   .out = "*run*", .footer_panel = false, .save_dirty_files = false,
-   .cmd = { { "..\\build\\api_parser 4ed_api_implementation.cpp", .os = "win"   }, }, },
+commands = {
+.build_x64 = {
+.win = "echo build: x64 & bin\build.bat",
+.out = "*compilation*",
+.footer_panel = true,
+.save_dirty_files = true,
+.cursor_at_end = false,
+},
+.build_x86 = {
+.win = "echo build: x86 & bin\build.bat /DDEV_BUILD_X86",
+.out = "*compilation*",
+.footer_panel = true,
+.save_dirty_files = true,
+.cursor_at_end = false,
+},
+.package = {
+.win = "echo package & bin\package.bat",
+.out = "*compilation*",
+.footer_panel = false,
+.save_dirty_files = true,
+.cursor_at_end = false,
+},
+.run_one_time = {
+.win = "pushd ..\build & one_time",
+.out = "*run*",
+.footer_panel = false,
+.save_dirty_files = false,
+.cursor_at_end = false,
+},
+.build_custom_api_docs = {
+.win = "custom\bin\build_one_time docs\4ed_doc_custom_api_main.cpp ..\build",
+.out = "*compilation*",
+.footer_panel = true,
+.save_dirty_files = true,
+.cursor_at_end = false,
+},
+.build_C___lexer_generator = {
+.win = "custom\bin\build_one_time custom\languages\4coder_cpp_lexer_gen.cpp ..\build",
+.out = "*compilation*",
+.footer_panel = true,
+.save_dirty_files = true,
+.cursor_at_end = false,
+},
+.build_token_tester = {
+.win = "custom\bin\build_one_time custom\languages\4coder_cpp_lexer_test.cpp ..\build",
+.out = "*compilation*",
+.footer_panel = true,
+.save_dirty_files = true,
+.cursor_at_end = false,
+},
+.build_system_api = {
+.win = "custom\bin\build_one_time 4ed_system_api.cpp ..\build",
+.out = "*compilation*",
+.footer_panel = true,
+.save_dirty_files = true,
+.cursor_at_end = false,
+},
+.build_font_api = {
+.win = "custom\bin\build_one_time 4ed_font_api.cpp ..\build",
+.out = "*compilation*",
+.footer_panel = true,
+.save_dirty_files = true,
+.cursor_at_end = false,
+},
+.build_graphics_api = {
+.win = "custom\bin\build_one_time 4ed_graphics_api.cpp ..\build",
+.out = "*compilation*",
+.footer_panel = true,
+.save_dirty_files = true,
+.cursor_at_end = false,
+},
+.build_api_parser = {
+.win = "custom\bin\build_one_time 4ed_api_parser_main.cpp ..\build & copy /B ..\build\one_time.exe ..\build\api_parser.exe",
+.out = "*compilation*",
+.footer_panel = true,
+.save_dirty_files = true,
+.cursor_at_end = false,
+},
+.build_api_checker = {
+.win = "custom\bin\build_one_time 4ed_api_check.cpp ..\build & copy /B ..\build\one_time.exe ..\build\api_checker.exe",
+.out = "*compilation*",
+.footer_panel = true,
+.save_dirty_files = true,
+.cursor_at_end = false,
+},
+.build_keycode_generator = {
+.win = "custom\bin\build_one_time 4ed_generate_keycodes.cpp ..\build",
+.out = "*compilation*",
+.footer_panel = true,
+.save_dirty_files = true,
+.cursor_at_end = false,
+},
+.build_site_render = {
+.win = "custom\bin\build_one_time site/4ed_site_render_main.cpp ..\build",
+.out = "*compilation*",
+.footer_panel = true,
+.save_dirty_files = true,
+.cursor_at_end = false,
+},
+.generate_custom_api_master_list = {
+.win = "..\build\api_parser 4ed_api_implementation.cpp",
+.out = "*run*",
+.footer_panel = false,
+.save_dirty_files = false,
+.cursor_at_end = false,
+},
 };
-
-fkey_command[1]  = "build x64";
-fkey_command[3]  = "build site render";
-fkey_command[4]  = "run one time";
-fkey_command[5]  = "build C++ lexer generator";
-fkey_command[6]  = "build token tester";
-fkey_command[11] = "package";
-
-

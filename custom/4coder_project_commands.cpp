@@ -192,11 +192,17 @@ prj_stringize_project(Application_Links *app, Arena *arena, Variable_Handle proj
     String_ID project_name_id = vars_save_string_lit("project_name");
     String_ID patterns_id = vars_save_string_lit("patterns");
     String_ID blacklist_patterns_id = vars_save_string_lit("blacklist_patterns");
-    String_ID load_paths_id = vars_save_string_lit("load_paths");
     
+    String_ID load_paths_id = vars_save_string_lit("load_paths");
     String_ID path_id = vars_save_string_lit("path");
     String_ID relative_id = vars_save_string_lit("relative");
     String_ID recursive_id = vars_save_string_lit("recursive");
+    
+    String_ID commands_id = vars_save_string_lit("commands");
+    String_ID out_id = vars_save_string_lit("out");
+    String_ID footer_panel_id = vars_save_string_lit("footer_panel");
+    String_ID save_dirty_files_id = vars_save_string_lit("save_dirty_files");
+    String_ID cursor_at_end_id = vars_save_string_lit("cursor_at_end");
     
     String8 os_strings[] = { str8_lit("win"), str8_lit("linux"), str8_lit("mac"), };
     local_const i32 os_string_count = ArrayCount(os_strings);
@@ -205,7 +211,10 @@ prj_stringize_project(Application_Links *app, Arena *arena, Variable_Handle proj
         os_string_ids[i] = vars_save_string(os_strings[i]);
     }
     
-    // NOTE(allen): Stringizing
+    
+    // NOTE(allen): Stringizing...
+    
+    // NOTE(allen): Header Stuff
     u64 version = vars_u64_from_var(app, vars_read_key(project, version_id));
     version = clamp_bot(2, version);
     string_list_pushf(arena, out, "version(%llu);\n", version);
@@ -218,6 +227,8 @@ prj_stringize_project(Application_Links *app, Arena *arena, Variable_Handle proj
     
     string_list_push(arena, out, str8_lit("\n"));
     
+    
+    // NOTE(allen): File Match Patterns
     Variable_Handle patterns = vars_read_key(project, patterns_id);
     if (!vars_is_nil(patterns)){
         prj_stringize__string_list(app, arena, str8_lit("patterns"), patterns, out);
@@ -230,6 +241,8 @@ prj_stringize_project(Application_Links *app, Arena *arena, Variable_Handle proj
     
     string_list_push(arena, out, str8_lit("\n"));
     
+    
+    // NOTE(allen): Load Paths
     Variable_Handle load_paths = vars_read_key(project, load_paths_id);
     if (!vars_is_nil(load_paths)){
         string_list_push(arena, out, str8_lit("load_paths = {\n"));
@@ -243,6 +256,7 @@ prj_stringize_project(Application_Links *app, Arena *arena, Variable_Handle proj
                     Variable_Handle recursive_var = vars_read_key(child, recursive_id);
                     Variable_Handle relative_var = vars_read_key(child, relative_id);
                     
+                    // TODO(allen): escape path_string
                     String8 path_string = vars_string_from_var(scratch, path_var);
                     b32 recursive = vars_b32_from_var(recursive_var);
                     b32 relative = vars_b32_from_var(relative_var);
@@ -257,8 +271,47 @@ prj_stringize_project(Application_Links *app, Arena *arena, Variable_Handle proj
             }
         }
         string_list_push(arena, out, str8_lit("};\n"));
+        
+        string_list_push(arena, out, str8_lit("\n"));
     }
     
+    
+    // NOTE(allen): Commands
+    Variable_Handle commands = vars_read_key(project, commands_id);
+    if (!vars_is_nil(commands)){
+        string_list_push(arena, out, str8_lit("commands = {\n"));
+        for (Vars_Children(command, commands)){
+            String8 command_name = vars_key_from_var(scratch, command);
+            string_list_pushf(arena, out, ".%.*s = {\n", string_expand(command_name));
+            
+            for (i32 i = 0; i < os_string_count; i += 1){
+                Variable_Handle os_cmd_var = vars_read_key(command, os_string_ids[i]);
+                if (!vars_is_nil(os_cmd_var)){
+                    // TODO(allen): escape os_cmd_string
+                    String8 os_cmd_string = vars_string_from_var(scratch, os_cmd_var);
+                    string_list_pushf(arena, out, ".%.*s = \"%.*s\",\n", string_expand(os_strings[i]), string_expand(os_cmd_string));
+                }
+            }
+            
+            Variable_Handle out_var = vars_read_key(command, out_id);
+            Variable_Handle footer_panel_var = vars_read_key(command, footer_panel_id);
+            Variable_Handle save_dirty_files_var = vars_read_key(command, save_dirty_files_id);
+            Variable_Handle cursor_at_end_var = vars_read_key(command, cursor_at_end_id);
+            
+            // TODO(allen): escape out_string
+            String8 out_string = vars_string_from_var(scratch, out_var);
+            b32 footer_panel = vars_b32_from_var(footer_panel_var);
+            b32 save_dirty_files = vars_b32_from_var(save_dirty_files_var);
+            b32 cursor_at_end = vars_b32_from_var(cursor_at_end_var);
+            
+            string_list_pushf(arena, out, ".out = \"%.*s\",\n", string_expand(out_string));
+            string_list_pushf(arena, out, ".footer_panel = %s,\n", (footer_panel?"true":"false"));
+            string_list_pushf(arena, out, ".save_dirty_files = %s,\n", (save_dirty_files?"true":"false"));
+            string_list_pushf(arena, out, ".cursor_at_end = %s,\n", (cursor_at_end?"true":"false"));
+            string_list_push(arena, out, str8_lit("},\n"));
+        }
+        string_list_push(arena, out, str8_lit("};\n"));
+    }
 }
 
 function Prj_Setup_Status
