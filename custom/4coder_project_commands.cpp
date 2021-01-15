@@ -187,11 +187,30 @@ function void
 prj_stringize_project(Application_Links *app, Arena *arena, Variable_Handle project, String8List *out){
     Scratch_Block scratch(app, arena);
     
-    u64 version = vars_u64_from_var(app, vars_read_key(project, vars_save_string_lit("version")));
+    // NOTE(allen): String IDs
+    String_ID version_id = vars_save_string_lit("version");
+    String_ID project_name_id = vars_save_string_lit("project_name");
+    String_ID patterns_id = vars_save_string_lit("patterns");
+    String_ID blacklist_patterns_id = vars_save_string_lit("blacklist_patterns");
+    String_ID load_paths_id = vars_save_string_lit("load_paths");
+    
+    String_ID path_id = vars_save_string_lit("path");
+    String_ID relative_id = vars_save_string_lit("relative");
+    String_ID recursive_id = vars_save_string_lit("recursive");
+    
+    String8 os_strings[] = { str8_lit("win"), str8_lit("linux"), str8_lit("mac"), };
+    local_const i32 os_string_count = ArrayCount(os_strings);
+    String_ID os_string_ids[os_string_count];
+    for (i32 i = 0; i < os_string_count; i += 1){
+        os_string_ids[i] = vars_save_string(os_strings[i]);
+    }
+    
+    // NOTE(allen): Stringizing
+    u64 version = vars_u64_from_var(app, vars_read_key(project, version_id));
     version = clamp_bot(2, version);
     string_list_pushf(arena, out, "version(%llu);\n", version);
     
-    String8 project_name = vars_string_from_var(scratch, vars_read_key(project, vars_save_string_lit("project_name")));
+    String8 project_name = vars_string_from_var(scratch, vars_read_key(project, project_name_id));
     if (project_name.size > 0){
         // TODO(allen): escape project_name
         string_list_pushf(arena, out, "project_name = \"%.*s\";\n", string_expand(project_name));
@@ -199,17 +218,47 @@ prj_stringize_project(Application_Links *app, Arena *arena, Variable_Handle proj
     
     string_list_push(arena, out, str8_lit("\n"));
     
-    Variable_Handle patterns = vars_read_key(project, vars_save_string_lit("patterns"));
+    Variable_Handle patterns = vars_read_key(project, patterns_id);
     if (!vars_is_nil(patterns)){
         prj_stringize__string_list(app, arena, str8_lit("patterns"), patterns, out);
     }
     
-    Variable_Handle blacklist_patterns = vars_read_key(project, vars_save_string_lit("blacklist_patterns"));
+    Variable_Handle blacklist_patterns = vars_read_key(project, blacklist_patterns_id);
     if (!vars_is_nil(blacklist_patterns)){
         prj_stringize__string_list(app, arena, str8_lit("blacklist_patterns"), blacklist_patterns, out);
     }
     
     string_list_push(arena, out, str8_lit("\n"));
+    
+    Variable_Handle load_paths = vars_read_key(project, load_paths_id);
+    if (!vars_is_nil(load_paths)){
+        string_list_push(arena, out, str8_lit("load_paths = {\n"));
+        for (i32 i = 0; i < os_string_count; i += 1){
+            Variable_Handle os_paths = vars_read_key(load_paths, os_string_ids[i]);
+            if (!vars_is_nil(os_paths)){
+                String8 os_string = os_strings[i];
+                string_list_pushf(arena, out, ".%.*s = {\n", string_expand(os_string));
+                for (Vars_Children(child, os_paths)){
+                    Variable_Handle path_var = vars_read_key(child, path_id);
+                    Variable_Handle recursive_var = vars_read_key(child, recursive_id);
+                    Variable_Handle relative_var = vars_read_key(child, relative_id);
+                    
+                    String8 path_string = vars_string_from_var(scratch, path_var);
+                    b32 recursive = vars_b32_from_var(recursive_var);
+                    b32 relative = vars_b32_from_var(relative_var);
+                    
+                    string_list_push(arena, out, str8_lit("{ "));
+                    string_list_pushf(arena, out, ".path = \"%.*s\", ", string_expand(path_string));
+                    string_list_pushf(arena, out, ".recursive = %s, ", (recursive?"true":"false"));
+                    string_list_pushf(arena, out, ".relative = %s, ", (relative?"true":"false"));
+                    string_list_push(arena, out, str8_lit("},\n"));
+                }
+                string_list_push(arena, out, str8_lit("},\n"));
+            }
+        }
+        string_list_push(arena, out, str8_lit("};\n"));
+    }
+    
 }
 
 function Prj_Setup_Status
