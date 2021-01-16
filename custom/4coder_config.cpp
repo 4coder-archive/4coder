@@ -14,6 +14,9 @@ def_search_normal_load_list(Arena *arena, List_String_Const_u8 *list){
     if (prj_dir.size > 0){
         string_list_push(arena, list, prj_dir);
     }
+    
+    // TODO(allen): User directory
+    
     def_search_list_add_system_path(arena, list, SystemPath_Binary);
 }
 
@@ -1580,6 +1583,29 @@ load_theme_file_into_live_set(Application_Links *app, char *file_name){
     save_theme(color_table, name);
 }
 
+function void
+load_folder_of_themes_into_live_set(Application_Links *app, String_Const_u8 path){
+    Scratch_Block scratch(app);
+    
+    File_List list = system_get_file_list(scratch, path);
+    for (File_Info **ptr = list.infos, **end = list.infos + list.count;
+         ptr < end;
+         ptr += 1){
+        File_Info *info = *ptr;
+        if (!HasFlag(info->attributes.flags, FileAttribute_IsDirectory)){
+            String_Const_u8 name = info->file_name;
+            Temp_Memory_Block temp(scratch);
+            String_Const_u8 full_name = push_u8_stringf(scratch, "%.*s/%.*s",
+                                                        string_expand(path),
+                                                        string_expand(name));
+            load_theme_file_into_live_set(app, (char*)full_name.str);
+        }
+    }
+}
+
+////////////////////////////////
+// NOTE(allen): Commands
+
 CUSTOM_COMMAND_SIG(load_theme_current_buffer)
 CUSTOM_DOC("Parse the current buffer as a theme file and add the theme to the theme list. If the buffer has a .4coder postfix in it's name, it is removed when the name is saved.")
 {
@@ -1624,24 +1650,15 @@ CUSTOM_DOC("Parse the current buffer as a theme file and add the theme to the th
     }
 }
 
-function void
-load_folder_of_themes_into_live_set(Application_Links *app, String_Const_u8 path){
+CUSTOM_COMMAND_SIG(go_to_user_directory)
+CUSTOM_DOC("Go to the 4coder user directory")
+{
     Scratch_Block scratch(app);
-    
-    File_List list = system_get_file_list(scratch, path);
-    for (File_Info **ptr = list.infos, **end = list.infos + list.count;
-         ptr < end;
-         ptr += 1){
-        File_Info *info = *ptr;
-        if (!HasFlag(info->attributes.flags, FileAttribute_IsDirectory)){
-            String_Const_u8 name = info->file_name;
-            Temp_Memory_Block temp(scratch);
-            String_Const_u8 full_name = push_u8_stringf(scratch, "%.*s/%.*s",
-                                                        string_expand(path),
-                                                        string_expand(name));
-            load_theme_file_into_live_set(app, (char*)full_name.str);
-        }
-    }
+    String_Const_u8 hot = push_hot_directory(app, scratch);
+    String8 user_4coder_path = system_get_path(scratch, SystemPath_UserDirectory);
+    String8 cmd = push_u8_stringf(scratch, "mkdir \"%.*s\"", string_expand(user_4coder_path));
+    exec_system_command(app, 0, buffer_identifier(0), hot, cmd, 0);
+    set_hot_directory(app, user_4coder_path);
 }
 
 // BOTTOM

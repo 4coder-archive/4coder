@@ -122,6 +122,10 @@ system_memory_annotation_sig(){
 // 4ed path
 //
 
+extern "C" {
+    BOOL GetUserProfileDirectoryW(HANDLE  hToken, LPWSTR  lpProfileDir, LPDWORD lpcchSize);
+}
+
 internal
 system_get_path_sig(){
     String_Const_u8 result = {};
@@ -148,6 +152,18 @@ system_get_path_sig(){
                 win32vars.binary_path.str[win32vars.binary_path.size] = 0;
             }
             result = push_string_copy(arena, win32vars.binary_path);
+        }break;
+        
+        case SystemPath_UserDirectory:
+        {
+            HANDLE current_process_token = GetCurrentProcessToken();
+            DWORD size = 0;
+			GetUserProfileDirectoryW(current_process_token, 0, &size);
+            u16 *buffer_u16 = push_array(arena, u16, size);
+            if (GetUserProfileDirectoryW(current_process_token, (WCHAR*)buffer_u16, &size)){
+                String8 path = string_u8_from_string_u16(arena, SCu16(buffer_u16, size), StringFill_NullTerminate).string;
+                result = push_stringf(arena, "%.*s\\4coder\\", string_expand(path));
+            }
         }break;
     }
     return(result);

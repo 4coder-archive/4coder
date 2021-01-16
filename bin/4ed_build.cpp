@@ -185,7 +185,7 @@ get_defines_from_flags(Arena *arena, u32 flags){
 "-wd4611 -wd4189 -WX -GR- -EHa- -nologo -FC"
 
 #define CL_LIBS_X64                              \
-"user32.lib winmm.lib gdi32.lib opengl32.lib comdlg32.lib "   \
+"user32.lib winmm.lib gdi32.lib opengl32.lib comdlg32.lib userenv.lib "   \
 FOREIGN_WIN "\\x64\\freetype.lib"
 
 #define CL_LIBS_X86                              \

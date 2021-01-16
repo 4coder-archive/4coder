@@ -35,6 +35,7 @@ typedef i32 System_Path_Code;
 enum{
     SystemPath_CurrentDirectory,
     SystemPath_Binary,
+    SystemPath_UserDirectory,
 };
 
 struct Memory_Annotation_Node{
