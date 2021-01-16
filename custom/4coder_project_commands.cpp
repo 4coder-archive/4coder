@@ -204,6 +204,8 @@ prj_stringize_project(Application_Links *app, Arena *arena, Variable_Handle proj
     String_ID save_dirty_files_id = vars_save_string_lit("save_dirty_files");
     String_ID cursor_at_end_id = vars_save_string_lit("cursor_at_end");
     
+    String_ID fkey_command_id = vars_save_string_lit("fkey_command");
+    
     String8 os_strings[] = { str8_lit("win"), str8_lit("linux"), str8_lit("mac"), };
     local_const i32 os_string_count = ArrayCount(os_strings);
     String_ID os_string_ids[os_string_count];
@@ -311,6 +313,23 @@ prj_stringize_project(Application_Links *app, Arena *arena, Variable_Handle proj
             string_list_push(arena, out, str8_lit("},\n"));
         }
         string_list_push(arena, out, str8_lit("};\n"));
+        
+        string_list_push(arena, out, str8_lit("\n"));
+    }
+    
+    
+    // NOTE(allen): FKey Command
+    Variable_Handle fkey_commands = vars_read_key(project, fkey_command_id);
+    if (!vars_is_nil(fkey_commands)){
+        string_list_push(arena, out, str8_lit("fkey_command = {\n"));
+        for (Vars_Children(child, fkey_commands)){
+            String8 key = vars_key_from_var(scratch, child);
+            String8 name = vars_string_from_var(scratch, child);
+            string_list_pushf(arena, out, ".%.*s = \"%.*s\",\n", string_expand(key), string_expand(name));
+        }
+        string_list_push(arena, out, str8_lit("};\n"));
+        
+        string_list_push(arena, out, str8_lit("\n"));
     }
 }
 
@@ -463,8 +482,10 @@ prj_generate_project(Arena *scratch, String8 script_path, String8 script_file, S
         fprintf(out, "   .mac = \"%.*s/%.*s\", },\n", string_expand(od), string_expand(bf));
         fprintf(out, "};\n");
         
-        fprintf(out, "fkey_command[1] = \"build\";\n");
-        fprintf(out, "fkey_command[2] = \"run\";\n");
+        fprintf(out, "fkey_command = {\n");
+        fprintf(out, ".F1 = \"run\";\n");
+        fprintf(out, ".F2 = \"run\";\n");
+        fprintf(out, "};\n");
         
         fclose(out);
         success = true;
@@ -716,10 +737,8 @@ prj_exec_command_fkey_index(Application_Links *app, i32 fkey_index){
     // can be continued.
     Variable_Handle fkeys = def_get_config_var(vars_save_string_lit("fkey_command"));
     
-    // TODO(allen): Ideally I could just pass fkey_index right to vars_read_key
-    // in a case like this.
     Scratch_Block scratch(app);
-    String8 fkey_index_str = push_stringf(scratch, "%d", fkey_index);
+    String8 fkey_index_str = push_stringf(scratch, "F%d", fkey_index + 1);
     String_ID fkey_index_id = vars_save_string(fkey_index_str);
     Variable_Handle cmd_name_var = vars_read_key(fkeys, fkey_index_id);
     String8 cmd_name = vars_string_from_var(scratch, cmd_name_var);

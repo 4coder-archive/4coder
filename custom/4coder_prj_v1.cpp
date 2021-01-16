@@ -251,88 +251,6 @@ prj_v1_parse_from_config(Application_Links *app, Arena *arena, String8 dir, Conf
     return(project);
 }
 
-#if 0
-function void
-project_v1_deep_copy__pattern_list(Arena *arena, Prj_Pattern_List *src_list, Prj_Pattern_List *dst_list){
-    for (Prj_Pattern_Node *src_node = src_list->first;
-         src_node != 0;
-         src_node = src_node->next){
-        Prj_Pattern_Node *dst_node = push_array(arena, Prj_Pattern_Node, 1);
-        sll_queue_push(dst_list->first, dst_list->last, dst_node);
-        dst_list->count += 1;
-        
-        for (String8Node *node = src_node->pattern.absolutes.first;
-             node != 0;
-             node = node->next){
-            String8 string = push_string_copy(arena, node->string);
-            string_list_push(arena, &dst_node->pattern.absolutes, string);
-        }
-    }
-}
-
-function Prj
-project_v1_deep_copy__inner(Arena *arena, Prj *project){
-    Prj result = {};
-    result.dir = push_string_copy(arena, project->dir);
-    result.name = push_string_copy(arena, project->name);
-    project_deep_copy__pattern_list(arena, &project->pattern_list, &result.pattern_list);
-    project_deep_copy__pattern_list(arena, &project->blacklist_pattern_list, &result.blacklist_pattern_list);
-    
-    {
-        i32 path_count = project->load_path_array.count;
-        result.load_path_array.paths = push_array(arena, Prj_File_Load_Path, path_count);
-        result.load_path_array.count = path_count;
-        
-        Prj_File_Load_Path *dst = result.load_path_array.paths;
-        Prj_File_Load_Path *src = project->load_path_array.paths;
-        for (i32 i = 0; i < path_count; ++i, ++dst, ++src){
-            dst->path = push_string_copy(arena, src->path);
-            dst->recursive = src->recursive;
-            dst->relative = src->relative;
-        }
-    }
-    
-    {
-        i32 command_count = project->command_array.count;
-        result.command_array.commands = push_array_zero(arena, Prj_Command, command_count);
-        result.command_array.count = command_count;
-        
-        Prj_Command *dst = result.command_array.commands;
-        Prj_Command *src = project->command_array.commands;
-        for (i32 i = 0; i < command_count; ++i, ++dst, ++src){
-            if (src->name.str != 0){
-                dst->name = push_string_copy(arena, src->name);
-            }
-            if (src->cmd.str != 0){
-                dst->cmd = push_string_copy(arena, src->cmd);
-            }
-            if (src->out.str != 0){
-                dst->out = push_string_copy(arena, src->out);
-            }
-            dst->footer_panel = src->footer_panel;
-            dst->save_dirty_files = src->save_dirty_files;
-            dst->cursor_at_end = src->cursor_at_end;
-        }
-    }
-    
-    block_copy_array(result.fkey_commands, project->fkey_commands);
-    
-    result.loaded = true;
-    return(result);
-}
-
-function Prj
-project_v1_deep_copy(Arena *arena, Prj *project){
-    Temp_Memory restore_point = begin_temp(arena);
-    Prj result = project_deep_copy__inner(arena, project);
-    if (!result.loaded){
-        end_temp(restore_point);
-        block_zero_struct(&result);
-    }
-    return(result);
-}
-#endif
-
 // NOTE(allen): string list join ("flatten") doesn't really work... :(
 function String8
 prj_v1_join_pattern_string(Arena *arena, String8List list){
@@ -492,7 +410,7 @@ prj_v1_to_v2(Application_Links *app, String8 dir, Config *parsed){
                 Prj_V1_Command *cmd = project->command_array.commands + cmd_index;
                 if (cmd->name.size > 0){
                     String8 cmd_name = prj_v1_sanitize_string(scratch, cmd->name);
-                    String_ID key = vars_save_string(push_stringf(scratch, "%d", i));
+                    String_ID key = vars_save_string(push_stringf(scratch, "F%d", i + 1));
                     String_ID val = vars_save_string(cmd_name);
                     vars_new_variable(fkeys_var, key, val);
                 }

@@ -129,3 +129,13 @@ commands = {
 .cursor_at_end = false,
 },
 };
+
+fkey_command = {
+.F1 = "build_x64",
+.F3 = "build_site_render",
+.F4 = "run_one_time",
+.F5 = "build_C___lexer_generator",
+.F6 = "build_token_tester",
+.F11 = "package",
+};
+
