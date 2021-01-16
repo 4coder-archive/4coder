@@ -1848,6 +1848,7 @@ main(int argc, char **argv){
         String_Const_u8 default_file_name = string_u8_litexpr("custom_4coder.so");
         List_String_Const_u8 search_list = {};
         def_search_list_add_system_path(scratch, &search_list, SystemPath_CurrentDirectory);
+        def_search_list_add_system_path(scratch, &search_list, SystemPath_UserDirectory);
         def_search_list_add_system_path(scratch, &search_list, SystemPath_Binary);
         String_Const_u8 custom_file_names[2] = {};
         i32 custom_file_count = 1;

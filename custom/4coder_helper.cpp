@@ -2050,20 +2050,6 @@ push_file_search_up_path(Application_Links *app, Arena *arena, String_Const_u8 s
 }
 
 function FILE*
-open_file_try_current_path_then_binary_path(Application_Links *app, char *file_name){
-    FILE *file = fopen(file_name, "rb");
-    if (file == 0){
-        Scratch_Block scratch(app);
-        List_String_Const_u8 list = {};
-        string_list_push(scratch, &list, system_get_path(scratch, SystemPath_Binary));
-        string_list_push_overlap(scratch, &list, '/', SCu8(file_name));
-        String_Const_u8 str = string_list_flatten(scratch, list, StringFill_NullTerminate);
-        file = fopen((char*)str.str, "rb");
-    }
-    return(file);
-}
-
-function FILE*
 open_file(Arena *scratch, String_Const_u8 name){
     Temp_Memory temp = begin_temp(scratch);
     String_Const_u8 name_copy = push_string_copy(scratch, name);

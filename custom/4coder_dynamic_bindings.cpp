@@ -24,7 +24,7 @@ dynamic_binding_load_from_file(Application_Links *app, Mapping *mapping, String_
     Scratch_Block scratch(app);
     
     String_Const_u8 filename_copied = push_string_copy(scratch, filename);
-    FILE *file = open_file_try_current_path_then_binary_path(app, (char*)filename_copied.str);
+    FILE *file = def_search_normal_fopen(scratch, (char*)filename_copied.str, "rb");
     if (file != 0){
         String_Const_u8 data = dump_file_handle(scratch, file);
         Config *parsed = def_config_from_text(app, scratch, filename, data);

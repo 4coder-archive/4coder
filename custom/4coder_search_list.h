@@ -21,6 +21,7 @@ function void def_search_list_add_system_path(Arena *arena, List_String_Const_u8
 ////////////////////////////////
 // NOTE(allen): Search List Functions
 
+function String_Const_u8 def_search_get_full_path(Arena *arena, List_String_Const_u8 *list, String_Const_u8 file_name);
 function FILE *def_search_fopen(Arena *arena, List_String_Const_u8 *list, char *file_name, char *opt);
 
 #endif

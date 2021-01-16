@@ -14,9 +14,7 @@ def_search_normal_load_list(Arena *arena, List_String_Const_u8 *list){
     if (prj_dir.size > 0){
         string_list_push(arena, list, prj_dir);
     }
-    
-    // TODO(allen): User directory
-    
+    def_search_list_add_system_path(arena, list, SystemPath_UserDirectory);
     def_search_list_add_system_path(arena, list, SystemPath_Binary);
 }
 
@@ -1378,30 +1376,6 @@ change_mode(Application_Links *app, String_Const_u8 mode){
 // TODO(allen): cleanup this mess some more
 
 function Config*
-config_parse__file_handle(Application_Links *app, Arena *arena, String_Const_u8 file_name, FILE *file){
-    Config *parsed = 0;
-    String_Const_u8 data = dump_file_handle(arena, file);
-    if (data.str != 0){
-        parsed = def_config_from_text(app, arena, file_name, data);
-    }
-    return(parsed);
-}
-
-function Config*
-config_parse__file_name(Application_Links *app, Arena *arena, char *file_name){
-    Config *parsed = 0;
-    FILE *file = open_file_try_current_path_then_binary_path(app, file_name);
-    if (file != 0){
-        String_Const_u8 data = dump_file_handle(arena, file);
-        fclose(file);
-        if (data.str != 0){
-            parsed = def_config_from_text(app, arena, SCu8(file_name), data);
-        }
-    }
-    return(parsed);
-}
-
-function Config*
 theme_parse__data(Application_Links *app, Arena *arena, String_Const_u8 file_name, String_Const_u8 data, Arena *color_arena, Color_Table *color_table){
     Config *parsed = def_config_from_text(app, arena, file_name, data);
     if (parsed != 0){
@@ -1472,7 +1446,10 @@ theme_parse__file_handle(Application_Links *app, Arena *arena, String_Const_u8 f
 function Config*
 theme_parse__file_name(Application_Links *app, Arena *arena, char *file_name, Arena *color_arena, Color_Table *color_table){
     Config *parsed = 0;
-    FILE *file = open_file_try_current_path_then_binary_path(app, file_name);
+	FILE* file = fopen(file_name, "rb");
+    if (file == 0){
+        file = def_search_normal_fopen(arena, file_name, "rb");
+    }
     if (file != 0){
         String_Const_u8 data = dump_file_handle(arena, file);
         fclose(file);
@@ -1494,7 +1471,16 @@ load_config_and_apply(Application_Links *app, Arena *out_arena, i32 override_fon
     Scratch_Block scratch(app, out_arena);
     
     linalloc_clear(out_arena);
-    Config *parsed = config_parse__file_name(app, out_arena, "config.4coder");
+    
+    Config *parsed = 0;
+    FILE *file = def_search_normal_fopen(scratch, "config.4coder", "rb");
+    if (file != 0){
+        String_Const_u8 data = dump_file_handle(scratch, file);
+        fclose(file);
+        if (data.str != 0){
+            parsed = def_config_from_text(app, scratch, str8_lit("config.4coder"), data);
+        }
+    }
     
     if (parsed != 0){
         // Errors
