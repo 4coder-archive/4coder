@@ -16,10 +16,12 @@ blacklist_patterns = {
 ".*",
 };
 
+load_path_shared = { .path = ".", .recursive = true, .relative = true, };
+
 load_paths = {
-.win = {
-{ .path = ".", .recursive = true, .relative = true, },
-},
+.win = { load_path_shared },
+.linux = { load_path_shared },
+.mac = { load_path_shared },
 };
 
 commands = {
