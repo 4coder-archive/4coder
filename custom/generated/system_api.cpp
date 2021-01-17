@@ -1,5 +1,6 @@
 function void
 system_api_fill_vtable(API_VTable_system *vtable){
+vtable->error_box = system_error_box;
 vtable->get_path = system_get_path;
 vtable->get_canonical = system_get_canonical;
 vtable->get_file_list = system_get_file_list;
@@ -60,6 +61,7 @@ vtable->set_destination_mixer = system_set_destination_mixer;
 #if defined(DYNAMIC_LINK_API)
 function void
 system_api_read_vtable(API_VTable_system *vtable){
+system_error_box = vtable->error_box;
 system_get_path = vtable->get_path;
 system_get_canonical = vtable->get_canonical;
 system_get_file_list = vtable->get_file_list;

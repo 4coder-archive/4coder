@@ -1,3 +1,4 @@
+api(system) function void error_box(char* msg);
 api(system) function String_Const_u8 get_path(Arena* arena, System_Path_Code path_code);
 api(system) function String_Const_u8 get_canonical(Arena* arena, String_Const_u8 name);
 api(system) function File_List get_file_list(Arena* arena, String_Const_u8 directory);

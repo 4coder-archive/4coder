@@ -2,6 +2,10 @@ function API_Definition*
 system_api_construct(Arena *arena){
 API_Definition *result = begin_api(arena, "system");
 {
+API_Call *call = api_call_with_location(arena, result, string_u8_litexpr("error_box"), string_u8_litexpr("void"), string_u8_litexpr(""));
+api_param(arena, call, "char*", "msg");
+}
+{
 API_Call *call = api_call_with_location(arena, result, string_u8_litexpr("get_path"), string_u8_litexpr("String_Const_u8"), string_u8_litexpr(""));
 api_param(arena, call, "Arena*", "arena");
 api_param(arena, call, "System_Path_Code", "path_code");

@@ -249,10 +249,17 @@ App_Init_Sig(app_init){
     // NOTE(allen): style setup
     {
         Scratch_Block scratch(tctx, arena);
+        
+        String8 binary_path = system_get_path(scratch, SystemPath_Binary);
+        String8 full_path = push_u8_stringf(arena, "%.*sfonts/liberation-mono.ttf", string_expand(binary_path));
+        
         Face_Description description = {};
-        description.font.file_name = get_file_path_in_fonts_folder(scratch, string_u8_litexpr("liberation-mono.ttf"));
+        description.font.file_name = full_path;
         description.parameters.pt_size = 12;
         Face *new_face = font_set_new_face(&models->font_set, &description);
+        if (new_face == 0){
+            system_error_box("Could not load the required fallback font");
+        }
         models->global_face_id = new_face->id;
     }
     

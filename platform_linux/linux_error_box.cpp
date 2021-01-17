@@ -12,7 +12,7 @@
 
 // HACK(allen): // NOTE(inso): this was a quick hack, might need some cleanup.
 internal void
-system_error_box(char *msg, b32 shutdown = true){
+system_error_box(char *msg){
     fprintf(stderr, "Fatal Error: %s\n", msg);
     //LOGF("Fatal Error: %s\n", msg);
     
@@ -181,9 +181,7 @@ XDrawString(dpy, w, gc1, (x)  , (y)  , (str), (len))
     }
 #undef DRAW_STR
     
-    if (shutdown){
-        exit(1);
-    }
+    exit(1);
 }
 
 // BOTTOM

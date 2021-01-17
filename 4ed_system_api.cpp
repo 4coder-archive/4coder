@@ -16,6 +16,11 @@ define_api(Arena *arena){
     API_Definition *api = begin_api(arena, "system");
     
     {
+        API_Call *call = api_call(arena, api, "error_box", "void");
+        api_param(arena, call, "char*", "msg");
+    }
+    
+    {
         API_Call *call = api_call(arena, api, "get_path", "String_Const_u8");
         api_param(arena, call, "Arena*", "arena");
         api_param(arena, call, "System_Path_Code", "path_code");

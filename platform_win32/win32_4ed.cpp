@@ -212,11 +212,9 @@ global Render_Target target;
 ////////////////////////////////
 
 internal void
-system_error_box(Arena *scratch, char *msg, b32 shutdown = true){
-    MessageBox_utf8(scratch, 0, (u8*)msg, (u8*)"Error", 0);
-    if (shutdown){
-        exit(1);
-    }
+system_error_box(char *msg){
+    MessageBoxA(0, msg, "Error", MB_OK);
+    ExitProcess(1);
 }
 
 ////////////////////////////////
@@ -229,7 +227,7 @@ win32_output_error_string(Arena *scratch, b32 use_error_box){
     char *str_ptr = (char*)&str;
     if (FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM, 0, error, 0, str_ptr, 0, 0)){
         if (use_error_box){
-            system_error_box(scratch, str, false);
+            system_error_box(str);
         }
     }
 }
@@ -1704,12 +1702,12 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
             }
             else{
                 char msg[] = "Failed to get application code from '4ed_app.dll'.";
-                system_error_box(scratch, msg);
+                system_error_box(msg);
             }
         }
         else{
             char msg[] = "Could not load '4ed_app.dll'. This file should be in the same directory as the main '4ed' executable.";
-            system_error_box(scratch, msg);
+            system_error_box(msg);
         }
     }
     
@@ -1782,15 +1780,15 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         }
         
         if (!has_library){
-            system_error_box(scratch, custom_not_found_msg);
+            system_error_box(custom_not_found_msg);
         }
         custom.get_version = (_Get_Version_Type*)system_get_proc(custom_library, "get_version");
         if (custom.get_version == 0 || custom.get_version(MAJOR, MINOR, PATCH) == 0){
-            system_error_box(scratch, custom_fail_version_msg);
+            system_error_box(custom_fail_version_msg);
         }
         custom.init_apis = (_Init_APIs_Type*)system_get_proc(custom_library, "init_apis");
         if (custom.init_apis == 0){
-            system_error_box(scratch, custom_fail_init_apis);
+            system_error_box(custom_fail_init_apis);
         }
     }
     

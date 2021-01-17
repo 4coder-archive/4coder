@@ -10,12 +10,10 @@
 // TOP
 
 internal void
-system_error_box(char *msg, b32 shutdown = true){
+system_error_box(char *msg){
     //LOGF("error box: %s\n", msg);
     osx_error_dialogue(msg);
-    if (shutdown){
-        exit(1);
-    }
+    exit(1);
 }
 
 // BOTTOM

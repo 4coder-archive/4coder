@@ -1,3 +1,4 @@
+#define system_error_box_sig() void system_error_box(char* msg)
 #define system_get_path_sig() String_Const_u8 system_get_path(Arena* arena, System_Path_Code path_code)
 #define system_get_canonical_sig() String_Const_u8 system_get_canonical(Arena* arena, String_Const_u8 name)
 #define system_get_file_list_sig() File_List system_get_file_list(Arena* arena, String_Const_u8 directory)
@@ -54,6 +55,7 @@
 #define system_set_key_mode_sig() void system_set_key_mode(Key_Mode mode)
 #define system_set_source_mixer_sig() void system_set_source_mixer(void* ctx, Audio_Mix_Sources_Function* mix_func)
 #define system_set_destination_mixer_sig() void system_set_destination_mixer(Audio_Mix_Destination_Function* mix_func)
+typedef void system_error_box_type(char* msg);
 typedef String_Const_u8 system_get_path_type(Arena* arena, System_Path_Code path_code);
 typedef String_Const_u8 system_get_canonical_type(Arena* arena, String_Const_u8 name);
 typedef File_List system_get_file_list_type(Arena* arena, String_Const_u8 directory);
@@ -111,6 +113,7 @@ typedef void system_set_key_mode_type(Key_Mode mode);
 typedef void system_set_source_mixer_type(void* ctx, Audio_Mix_Sources_Function* mix_func);
 typedef void system_set_destination_mixer_type(Audio_Mix_Destination_Function* mix_func);
 struct API_VTable_system{
+system_error_box_type *error_box;
 system_get_path_type *get_path;
 system_get_canonical_type *get_canonical;
 system_get_file_list_type *get_file_list;
@@ -169,6 +172,7 @@ system_set_source_mixer_type *set_source_mixer;
 system_set_destination_mixer_type *set_destination_mixer;
 };
 #if defined(STATIC_LINK_API)
+internal void system_error_box(char* msg);
 internal String_Const_u8 system_get_path(Arena* arena, System_Path_Code path_code);
 internal String_Const_u8 system_get_canonical(Arena* arena, String_Const_u8 name);
 internal File_List system_get_file_list(Arena* arena, String_Const_u8 directory);
@@ -227,6 +231,7 @@ internal void system_set_source_mixer(void* ctx, Audio_Mix_Sources_Function* mix
 internal void system_set_destination_mixer(Audio_Mix_Destination_Function* mix_func);
 #undef STATIC_LINK_API
 #elif defined(DYNAMIC_LINK_API)
+global system_error_box_type *system_error_box = 0;
 global system_get_path_type *system_get_path = 0;
 global system_get_canonical_type *system_get_canonical = 0;
 global system_get_file_list_type *system_get_file_list = 0;

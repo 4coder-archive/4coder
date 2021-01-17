@@ -8,7 +8,7 @@
 // NOTE(allen): Config Search List
 
 function void
-def_search_normal_load_list(Arena *arena, List_String_Const_u8 *list){
+def_search_normal_load_list(Arena *arena, String8List *list){
     Variable_Handle prj_var = vars_read_key(vars_get_root(), vars_save_string_lit("prj_config"));
     String_Const_u8 prj_dir = prj_path_from_project(arena, prj_var);
     if (prj_dir.size > 0){
@@ -18,10 +18,18 @@ def_search_normal_load_list(Arena *arena, List_String_Const_u8 *list){
     def_search_list_add_system_path(arena, list, SystemPath_Binary);
 }
 
+function String8
+def_search_normal_full_path(Arena *arena, String8 relative){
+    String8List list = {};
+    def_search_normal_load_list(arena, &list);
+    String8 result = def_search_get_full_path(arena, &list, relative);
+    return(result);
+}
+
 function FILE*
 def_search_normal_fopen(Arena *arena, char *file_name, char *opt){
     Temp_Memory_Block block(arena);
-    List_String_Const_u8 list = {};
+    String8List list = {};
     def_search_normal_load_list(arena, &list);
     FILE *file = def_search_fopen(arena, &list, file_name, opt);
     return(file);
@@ -1539,7 +1547,8 @@ load_config_and_apply(Application_Links *app, Arena *out_arena, i32 override_fon
     
     description.font.file_name = default_font_name;
     if (!modify_global_face_by_description(app, description)){
-        description.font.file_name = get_file_path_in_fonts_folder(scratch, default_font_name);
+        String8 name_in_fonts_folder = push_u8_stringf(scratch, "fonts/%.*s", string_expand(default_font_name));
+        description.font.file_name = def_search_normal_full_path(scratch, name_in_fonts_folder);
         modify_global_face_by_description(app, description);
     }
     

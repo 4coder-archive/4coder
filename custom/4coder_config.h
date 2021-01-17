@@ -175,8 +175,9 @@ struct Config_Get_Result_List{
 ////////////////////////////////
 // NOTE(allen): Config Search List
 
-function void def_search_normal_load_list(Arena *arena, List_String_Const_u8 *list);
+function void def_search_normal_load_list(Arena *arena, String8List *list);
 
+function String8 def_search_normal_full_path(Arena *arena, String8 relative);
 function FILE *def_search_normal_fopen(Arena *arena, char *file_name, char *opt);
 
 ////////////////////////////////
