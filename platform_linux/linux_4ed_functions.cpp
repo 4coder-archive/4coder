@@ -42,6 +42,11 @@ system_get_path(Arena* arena, System_Path_Code path_code){
             
             result = string_remove_last_folder(SCu8(buf, n));
         } break;
+        
+        case SystemPath_UserDirectory:
+        {
+            
+        }break;
     }
     
     return(result);
