@@ -71,7 +71,7 @@ default_font_hinting = false;
 // aa modes:
 //  8bit - mono-chrome 0-255 opacity channel per pixel
 //  1bit - mono-chrome 0/1 opacity channel per pixel
-default_font_aa_mode = "1bit";
+default_font_aa_mode = "8bit";
 
 // User
 user_name = "not-set";
