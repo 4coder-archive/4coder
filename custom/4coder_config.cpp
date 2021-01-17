@@ -1535,6 +1535,16 @@ load_config_and_apply(Application_Links *app, Arena *out_arena, i32 override_fon
     b32 default_font_hinting = def_get_config_b32(vars_save_string_lit("default_font_hinting"));
     description.parameters.hinting = default_font_hinting || override_hinting;
     
+    Face_Antialiasing_Mode aa_mode = FaceAntialiasingMode_8BitMono;
+    String8 aa_mode_string = def_get_config_string(scratch, vars_save_string_lit("default_font_aa_mode"));
+    if (string_match(aa_mode_string, str8_lit("8bit"))){
+        aa_mode = FaceAntialiasingMode_8BitMono;
+    }
+    else if (string_match(aa_mode_string, str8_lit("1bit"))){
+        aa_mode = FaceAntialiasingMode_1BitMono;
+    }
+    description.parameters.aa_mode = aa_mode;
+    
     description.font.file_name = default_font_name;
     if (!modify_global_face_by_description(app, description)){
         String8 name_in_fonts_folder = push_u8_stringf(scratch, "fonts/%.*s", string_expand(default_font_name));

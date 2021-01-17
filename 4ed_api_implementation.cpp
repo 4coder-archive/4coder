@@ -2654,6 +2654,7 @@ get_face_description(Application_Links *app, Face_ID face_id)
         }
     }
     else{
+        description.parameters.aa_mode = FaceAntialiasingMode_8BitMono;
         description.parameters.pt_size = models->settings.font_size;
         description.parameters.hinting = models->settings.use_hinting;
     }

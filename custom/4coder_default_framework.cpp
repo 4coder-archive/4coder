@@ -662,8 +662,7 @@ default_4coder_initialize(Application_Links *app, String_Const_u8_Array file_nam
 }
 
 function void
-default_4coder_initialize(Application_Links *app,
-                          i32 override_font_size, b32 override_hinting){
+default_4coder_initialize(Application_Links *app, i32 override_font_size, b32 override_hinting){
     String_Const_u8_Array file_names = {};
     default_4coder_initialize(app, file_names, override_font_size, override_hinting);
 }

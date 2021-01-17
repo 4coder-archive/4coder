@@ -500,12 +500,20 @@ struct Font_Load_Location{
 };
 
 api(custom)
+typedef u32 Face_Antialiasing_Mode;
+enum{
+    FaceAntialiasingMode_8BitMono,
+    FaceAntialiasingMode_1BitMono,
+};
+
+api(custom)
 struct Face_Load_Parameters{
     u32 pt_size;
-    b32 bold;
-    b32 italic;
-    b32 underline;
-    b32 hinting;
+    Face_Antialiasing_Mode aa_mode;
+    b8 bold;
+    b8 italic;
+    b8 underline;
+    b8 hinting;
 };
 
 api(custom)

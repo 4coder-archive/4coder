@@ -23,7 +23,7 @@ struct App_Settings{
     b32 lctrl_lalt_is_altgr;
     
     i32 font_size;
-    b32 use_hinting;
+    b8 use_hinting;
 };
 
 enum App_State{

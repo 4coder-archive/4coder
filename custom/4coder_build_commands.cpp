@@ -150,9 +150,9 @@ get_or_open_build_panel(Application_Links *app){
 
 function void
 set_fancy_compilation_buffer_font(Application_Links *app){
+    Scratch_Block scratch(app);
     Buffer_ID buffer = get_comp_buffer(app);
     Font_Load_Location font = {};
-    Scratch_Block scratch(app);
     font.file_name = def_search_normal_full_path(scratch, str8_lit("fonts/Inconsolata-Regular.ttf"));
     set_buffer_face_by_font_load_location(app, buffer, &font);
 }

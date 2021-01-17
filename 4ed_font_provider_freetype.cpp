@@ -246,6 +246,8 @@ ft__font_make_face(Arena *arena, Face_Description *description, f32 scale_factor
                     
                     case FT_PIXEL_MODE_GRAY:
                     {
+                        b32 aa_1bit_mono = (description->parameters.aa_mode == FaceAntialiasingMode_1BitMono);
+                        
                         u8 *src_line = ft_glyph->bitmap.buffer;
                         if (ft_glyph->bitmap.pitch < 0){
                             src_line = ft_glyph->bitmap.buffer + (-ft_glyph->bitmap.pitch)*(dim.y - 1);
@@ -254,7 +256,16 @@ ft__font_make_face(Arena *arena, Face_Description *description, f32 scale_factor
                         for (i32 y = 0; y < dim.y; y += 1){
                             u8 *src_pixel = src_line;
                             for (i32 x = 0; x < dim.x; x += 1){
-                                *dst = *src_pixel;
+                                if (aa_1bit_mono){
+                                    u8 s = *src_pixel;
+                                    if (s > 0){
+                                        s = 255;
+                                    }
+                                    *dst = s;
+                                }
+                                else{
+                                    *dst = *src_pixel;
+                                }
                                 dst += 1;
                                 src_pixel += 1;
                             }
