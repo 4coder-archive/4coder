@@ -1442,16 +1442,6 @@ theme_parse__buffer(Application_Links *app, Arena *arena, Buffer_ID buffer, Aren
 }
 
 function Config*
-theme_parse__file_handle(Application_Links *app, Arena *arena, String_Const_u8 file_name, FILE *file, Arena *color_arena, Color_Table *color_table){
-    String_Const_u8 data = dump_file_handle(arena, file);
-    Config *parsed = 0;
-    if (data.str != 0){
-        parsed = theme_parse__data(app, arena, file_name, data, color_arena, color_table);
-    }
-    return(parsed);
-}
-
-function Config*
 theme_parse__file_name(Application_Links *app, Arena *arena, char *file_name, Arena *color_arena, Color_Table *color_table){
     Config *parsed = 0;
 	FILE* file = fopen(file_name, "rb");

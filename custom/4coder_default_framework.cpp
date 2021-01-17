@@ -539,9 +539,16 @@ CUSTOM_DOC("Loads all the theme files in the default theme folder.")
     save_all_dirty_buffers_with_postfix(app, fcoder_extension);
     
     Scratch_Block scratch(app);
-    String_Const_u8 bin_path = system_get_path(scratch, SystemPath_Binary);
-    String_Const_u8 path = push_u8_stringf(scratch, "%.*sthemes", string_expand(bin_path));
-    load_folder_of_themes_into_live_set(app, path);
+    String8List list = {};
+    def_search_normal_load_list(scratch, &list);
+    
+    for (String8Node *node = list.first;
+         node != 0;
+         node = node->next){
+        String8 folder_path = node->string;
+        String8 themes_path = push_u8_stringf(scratch, "%.*sthemes", string_expand(folder_path));
+        load_folder_of_themes_into_live_set(app, themes_path);
+    }
 }
 
 CUSTOM_COMMAND_SIG(load_themes_hot_directory)
