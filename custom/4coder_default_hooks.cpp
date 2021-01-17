@@ -25,13 +25,15 @@ CUSTOM_DOC("Default command for responding to a startup event")
         
         Scratch_Block scratch(app);
         FILE *file = def_search_normal_fopen(scratch, "audio_test/raygun_zap.wav", "rb");
-        Audio_Clip test_clip = audio_clip_from_wav_FILE(&global_permanent_arena, file);
-        fclose(file);
-        
-        local_persist Audio_Control test_control = {};
-        test_control.channel_volume[0] = 1.f;
-        test_control.channel_volume[1] = 1.f;
-        def_audio_play_clip(test_clip, &test_control);
+        if (file != 0){
+            Audio_Clip test_clip = audio_clip_from_wav_FILE(&global_permanent_arena, file);
+            fclose(file);
+            
+            local_persist Audio_Control test_control = {};
+            test_control.channel_volume[0] = 1.f;
+            test_control.channel_volume[1] = 1.f;
+            def_audio_play_clip(test_clip, &test_control);
+        }
     }
     
     {
