@@ -5,6 +5,9 @@
 #if OS_LINUX
 #include <immintrin.h>
 #define _InterlockedExchangeAdd __sync_fetch_and_add
+#elif OS_MAC
+#include <immintrin.h>
+#define _InterlockedExchangeAdd __sync_fetch_and_add
 #else
 #include <intrin.h>
 #endif
