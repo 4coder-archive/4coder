@@ -48,7 +48,10 @@ system_get_path_sig(){
 
         case SystemPath_UserDirectory:
         {
-            
+            char *home_cstr = getenv("HOME");
+            if (home_cstr != 0){
+                result = push_u8_stringf(arena, "%s/.4coder/", home_cstr);
+            }
         }break;
     }
 
