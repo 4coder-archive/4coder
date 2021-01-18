@@ -45,6 +45,11 @@ system_get_path_sig(){
 
             result = push_string_copy(arena, mac_vars.binary_path);
         } break;
+
+        case SystemPath_UserDirectory:
+        {
+            
+        }break;
     }
 
     return(result);
@@ -53,7 +58,7 @@ system_get_path_sig(){
 function
 system_get_canonical_sig(){
     NSString *path_ns_str =
-        [[NSString alloc] initWithBytes:name.data length:name.size encoding:NSUTF8StringEncoding];
+        [[NSString alloc] initWithBytes:name.str length:name.size encoding:NSUTF8StringEncoding];
 
     NSString *standardized_path_ns_str = [path_ns_str stringByStandardizingPath];
     String_Const_u8 standardized_path = SCu8((u8*)[standardized_path_ns_str UTF8String],[standardized_path_ns_str lengthOfBytesUsingEncoding:NSUTF8StringEncoding]);
@@ -936,6 +941,16 @@ system_get_keyboard_modifiers_sig(){
 function
 system_set_key_mode_sig(){
     mac_vars.key_mode = mode;
+}
+
+internal void
+system_set_source_mixer(void* ctx, Audio_Mix_Sources_Function* mix_func){
+    // TODO(allen): Audio on Mac
+}
+
+internal void
+system_set_destination_mixer(Audio_Mix_Destination_Function* mix_func){
+    // TODO(allen): Audio on Mac
 }
 
 ////////////////////////////////

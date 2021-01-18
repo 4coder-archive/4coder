@@ -18,7 +18,7 @@ mac_init_renderer(Mac_Renderer_Kind kind, NSWindow *window, Render_Target *targe
     Mac_Renderer *result = load_renderer(window, target);
     
     if (!result){
-        mac_error_box("Unable to initialize the renderer!");
+        system_error_box("Unable to initialize the renderer!");
     }
     
     return result;
