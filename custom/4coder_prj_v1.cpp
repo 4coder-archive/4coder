@@ -381,7 +381,7 @@ prj_v1_to_v2(Application_Links *app, String8 dir, Config *parsed){
             Variable_Handle path_var = vars_new_variable(os_var, key);
             vars_new_variable(path_var, path_id, vars_save_string(load_path->path));
             vars_new_variable(path_var, recursive_id, load_path->recursive?true_id:false_id);
-            vars_new_variable(path_var, relative_id, load_path->recursive?true_id:false_id);
+            vars_new_variable(path_var, relative_id, load_path->relative?true_id:false_id);
         }
     }
     
