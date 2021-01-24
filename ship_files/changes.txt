@@ -5,7 +5,10 @@
  + Added highlighting for functions, types, and macros in code index
  + Default input is now dispatched through an "implicit map" callback
  + Audio system API and default audio mixer with examples in 4coder_examples.cpp
+ + Standard search list for loading custom DLL, config, fonts, themes and more
+    Search order: loaded project's path, "user path", binary path
  + Fix: crash when pasting in read only buffer
+ + Fix: crash when closing cli output buffer
 
 4.1.6
  + In config.4coder "bind_by_physical_key" uses a key-layout that does not change with language
