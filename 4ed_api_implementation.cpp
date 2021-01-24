@@ -920,6 +920,16 @@ buffer_kill(Application_Links *app, Buffer_ID buffer_id, Buffer_Kill_Flag flags)
                     }
                 }
                 
+                Child_Process_Container *child_processes = &models->child_processes;
+                for (Node *node = child_processes->child_process_active_list.next;
+                     node != &child_processes->child_process_active_list;
+                     node = node->next){
+                    Child_Process *child_process = CastFromMember(Child_Process, node, node);
+                    if (child_process->out_file == file){
+                        child_process->out_file = 0;
+                    }
+                }
+                
                 result = BufferKillResult_Killed;
             }
             else{
