@@ -180,17 +180,14 @@ get_defines_from_flags(Arena *arena, u32 flags){
 #if COMPILER_CL
 
 #define CL_OPTS                                  \
-"-W4 -wd4310 -wd4100 -wd4201 -wd4505 -wd4996 "   \
-"-wd4127 -wd4510 -wd4512 -wd4610 -wd4390 "       \
+"-W4 -wd4310 -wd4100 -wd4201 -wd4505 -wd4996 "  \
+"-wd4127 -wd4510 -wd4512 -wd4610 -wd4390 "      \
 "-wd4611 -wd4189 -WX -GR- -EHa- -nologo -FC"
 
-#define CL_LIBS_X64                              \
-"user32.lib winmm.lib gdi32.lib opengl32.lib comdlg32.lib userenv.lib "   \
-FOREIGN_WIN "\\x64\\freetype.lib"
-
-#define CL_LIBS_X86                              \
-"user32.lib winmm.lib gdi32.lib opengl32.lib comdlg32.lib "   \
-FOREIGN_WIN "\\x86\\freetype.lib"
+#define CL_LIBS_COMMON \
+"user32.lib winmm.lib gdi32.lib opengl32.lib comdlg32.lib userenv.lib "
+#define CL_LIBS_X64 CL_LIBS_COMMON FOREIGN_WIN "\\x64\\freetype.lib"
+#define CL_LIBS_X86 CL_LIBS_COMMON FOREIGN_WIN "\\x86\\freetype.lib"
 
 #define CL_ICON "..\\4coder-non-source\\res\\icon.res"
 
@@ -303,19 +300,19 @@ build(Arena *arena, u32 flags, u32 arch, char *code_path, char **code_files, cha
 
 #if OS_LINUX
 
-# define GCC_OPTS                     \
+# define GCC_OPTS                      \
 "-Wno-write-strings "                 \
 "-D_GNU_SOURCE -fPIC "                \
 "-fno-threadsafe-statics -pthread "   \
 "-Wno-unused-result "                 \
 "-std=c++11"
 
-#define GCC_LIBS_COMMON                        \
+# define GCC_LIBS_COMMON       \
 "-lX11 -lpthread -lm -lrt "   \
 "-lGL -ldl -lXfixes -lfreetype -lfontconfig"
 
-#define GCC_LIBS_X64 GCC_LIBS_COMMON
-#define GCC_LIBS_X86 GCC_LIBS_COMMON
+# define GCC_LIBS_X64 GCC_LIBS_COMMON
+# define GCC_LIBS_X86 GCC_LIBS_COMMON
 
 #else
 # error gcc options not set for this platform
@@ -597,7 +594,7 @@ get_4coder_dist_name(Arena *arena, u32 platform, char *tier, u32 arch){
 
 function void
 package_for_arch(Arena *arena, u32 arch, char *cdir, char *build_dir, char *pack_dir, i32 tier, char *tier_name,  char *current_dist_tier, u32 flags, char** dist_files, i32 dist_file_count){
-    char *arch_name = arch_names[arch];
+    char *arch_name  = arch_names[arch];
     char *parent_dir = fm_str(arena, current_dist_tier, "_", arch_name);
     char *dir        = fm_str(arena, parent_dir, SLASH "4coder");
     char *zip_dir    = fm_str(arena, pack_dir, SLASH, tier_name, "_", arch_name);

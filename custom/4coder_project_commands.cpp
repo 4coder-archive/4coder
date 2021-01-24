@@ -1032,7 +1032,7 @@ CUSTOM_DOC("Prints the current project to the file it was loaded from; prints in
             for (String8Node *node = prj_string.first;
                  node != 0;
                  node = node->next){
-                fwrite(node->string.str, 1, node->string.size, file);
+                fwrite(node->string.str, 1, (size_t)node->string.size, file);
             }
             fclose(file);
             print_message(app, str8_lit("Reloading project buffer\n"));

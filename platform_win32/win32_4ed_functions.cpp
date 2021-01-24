@@ -122,9 +122,8 @@ system_memory_annotation_sig(){
 // 4ed path
 //
 
-extern "C" {
-    BOOL GetUserProfileDirectoryW(HANDLE  hToken, LPWSTR  lpProfileDir, LPDWORD lpcchSize);
-}
+extern "C" BOOL CALL_CONVENTION
+GetUserProfileDirectoryW(HANDLE  hToken, LPWSTR  lpProfileDir, LPDWORD lpcchSize);
 
 internal
 system_get_path_sig(){
