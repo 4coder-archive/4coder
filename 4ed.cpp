@@ -52,6 +52,7 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
                                 
                                 case 'f': action = CLAct_FontSize; break;
                                 case 'h': action = CLAct_FontUseHinting; --i; break;
+                                case 'U': action = CLAct_UserDirectory; break;
                             }
                         }
                         else if (arg[0] != 0){
@@ -135,6 +136,14 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
                     {
                         plat_settings->use_hinting = true;
                         settings->use_hinting = plat_settings->use_hinting;
+                        action = CLAct_Nothing;
+                    }break;
+                    
+                    case CLAct_UserDirectory:
+                    {
+                        if (i < argc){
+                            plat_settings->user_directory = argv[i];
+                        }
                         action = CLAct_Nothing;
                     }break;
                 }

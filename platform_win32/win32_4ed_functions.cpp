@@ -125,6 +125,8 @@ system_memory_annotation_sig(){
 extern "C" BOOL CALL_CONVENTION
 GetUserProfileDirectoryW(HANDLE  hToken, LPWSTR  lpProfileDir, LPDWORD lpcchSize);
 
+global String_Const_u8 w32_override_user_directory = {};
+
 internal
 system_get_path_sig(){
     String_Const_u8 result = {};
@@ -155,13 +157,18 @@ system_get_path_sig(){
         
         case SystemPath_UserDirectory:
         {
-            HANDLE current_process_token = GetCurrentProcessToken();
-            DWORD size = 0;
-			GetUserProfileDirectoryW(current_process_token, 0, &size);
-            u16 *buffer_u16 = push_array(arena, u16, size);
-            if (GetUserProfileDirectoryW(current_process_token, (WCHAR*)buffer_u16, &size)){
-                String8 path = string_u8_from_string_u16(arena, SCu16(buffer_u16, size), StringFill_NullTerminate).string;
-                result = push_stringf(arena, "%.*s\\4coder\\", string_expand(path));
+            if (w32_override_user_directory.size == 0){
+                HANDLE current_process_token = GetCurrentProcessToken();
+                DWORD size = 0;
+                GetUserProfileDirectoryW(current_process_token, 0, &size);
+                u16 *buffer_u16 = push_array(arena, u16, size);
+                if (GetUserProfileDirectoryW(current_process_token, (WCHAR*)buffer_u16, &size)){
+                    String8 path = string_u8_from_string_u16(arena, SCu16(buffer_u16, size), StringFill_NullTerminate).string;
+                    result = push_stringf(arena, "%.*s\\4coder\\", string_expand(path));
+                }
+            }
+            else{
+                result = w32_override_user_directory;
             }
         }break;
     }

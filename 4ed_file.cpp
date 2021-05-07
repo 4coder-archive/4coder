@@ -167,11 +167,6 @@ save_file_to_name(Thread_Context *tctx, Models *models, Editing_File *file, u8 *
     return(result);
 }
 
-internal b32
-save_file(Thread_Context *tctx, Models *models, Editing_File *file){
-    return(save_file_to_name(tctx, models, file, 0));
-}
-
 ////////////////////////////////
 
 internal Buffer_Cursor

@@ -180,7 +180,6 @@ struct File_Init{
 enum Command_Line_Action{
     CLAct_Nothing,
     CLAct_Ignore,
-    CLAct_UserFile,
     CLAct_CustomDLL,
     CLAct_WindowSize,
     CLAct_WindowMaximize,
@@ -188,6 +187,7 @@ enum Command_Line_Action{
     CLAct_WindowFullscreen,
     CLAct_FontSize,
     CLAct_FontUseHinting,
+    CLAct_UserDirectory,
     //
     CLAct_COUNT,
 };

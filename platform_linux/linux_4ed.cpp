@@ -1835,6 +1835,11 @@ main(int argc, char **argv){
         }*/
     }
     
+    // NOTE(allen): setup user directory override
+    if (plat_settings.user_directory != 0){
+        lnx_override_user_directory = plat_settings.user_directory;
+    }
+    
     // NOTE(allen): load custom layer
     System_Library custom_library = {};
     Custom_API custom = {};

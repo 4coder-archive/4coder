@@ -1738,6 +1738,11 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         }
     }
     
+    // NOTE(allen): setup user directory override
+    if (plat_settings.user_directory != 0){
+        w32_override_user_directory = SCu8((u8*)plat_settings.user_directory);
+    }
+    
     // NOTE(allen): load custom layer
     System_Library custom_library = {};
     Custom_API custom = {};
