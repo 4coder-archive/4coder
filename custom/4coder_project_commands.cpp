@@ -1048,5 +1048,101 @@ CUSTOM_DOC("Prints the current project to the file it was loaded from; prints in
     }
 }
 
+CUSTOM_COMMAND_SIG(project_command_F1)
+CUSTOM_DOC("Run the command with index 1")
+{
+    prj_exec_command_fkey_index(app, 0);
+}
+
+CUSTOM_COMMAND_SIG(project_command_F2)
+CUSTOM_DOC("Run the command with index 2")
+{
+    prj_exec_command_fkey_index(app, 1);
+}
+
+CUSTOM_COMMAND_SIG(project_command_F3)
+CUSTOM_DOC("Run the command with index 3")
+{
+    prj_exec_command_fkey_index(app, 2);
+}
+
+CUSTOM_COMMAND_SIG(project_command_F4)
+CUSTOM_DOC("Run the command with index 4")
+{
+    prj_exec_command_fkey_index(app, 3);
+}
+
+CUSTOM_COMMAND_SIG(project_command_F5)
+CUSTOM_DOC("Run the command with index 5")
+{
+    prj_exec_command_fkey_index(app, 4);
+}
+
+CUSTOM_COMMAND_SIG(project_command_F6)
+CUSTOM_DOC("Run the command with index 6")
+{
+    prj_exec_command_fkey_index(app, 5);
+}
+
+CUSTOM_COMMAND_SIG(project_command_F7)
+CUSTOM_DOC("Run the command with index 7")
+{
+    prj_exec_command_fkey_index(app, 6);
+}
+
+CUSTOM_COMMAND_SIG(project_command_F8)
+CUSTOM_DOC("Run the command with index 8")
+{
+    prj_exec_command_fkey_index(app, 7);
+}
+
+CUSTOM_COMMAND_SIG(project_command_F9)
+CUSTOM_DOC("Run the command with index 9")
+{
+    prj_exec_command_fkey_index(app, 8);
+}
+
+CUSTOM_COMMAND_SIG(project_command_F10)
+CUSTOM_DOC("Run the command with index 10")
+{
+    prj_exec_command_fkey_index(app, 9);
+}
+
+CUSTOM_COMMAND_SIG(project_command_F11)
+CUSTOM_DOC("Run the command with index 11")
+{
+    prj_exec_command_fkey_index(app, 10);
+}
+
+CUSTOM_COMMAND_SIG(project_command_F12)
+CUSTOM_DOC("Run the command with index 12")
+{
+    prj_exec_command_fkey_index(app, 11);
+}
+
+CUSTOM_COMMAND_SIG(project_command_F13)
+CUSTOM_DOC("Run the command with index 13")
+{
+    prj_exec_command_fkey_index(app, 12);
+}
+
+CUSTOM_COMMAND_SIG(project_command_F14)
+CUSTOM_DOC("Run the command with index 14")
+{
+    prj_exec_command_fkey_index(app, 13);
+}
+
+CUSTOM_COMMAND_SIG(project_command_F15)
+CUSTOM_DOC("Run the command with index 15")
+{
+    prj_exec_command_fkey_index(app, 14);
+}
+
+CUSTOM_COMMAND_SIG(project_command_F16)
+CUSTOM_DOC("Run the command with index 16")
+{
+    prj_exec_command_fkey_index(app, 15);
+}
+
 // BOTTOM
 
