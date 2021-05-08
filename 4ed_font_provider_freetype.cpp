@@ -174,7 +174,8 @@ ft__font_make_face(Arena *arena, Face_Description *description, f32 scale_factor
     if (error == 0){
         face = push_array_zero(arena, Face, 1);
         
-        u32 pt_size = (u32)(description->parameters.pt_size*scale_factor);
+        u32 pt_size_unscaled = Max(description->parameters.pt_size, 8); 
+        u32 pt_size = (u32)(pt_size_unscaled*scale_factor);
         b32 hinting = description->parameters.hinting;
         
         FT_Size_RequestRec_ size = {};

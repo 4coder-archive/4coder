@@ -1478,7 +1478,7 @@ load_config_and_apply(Application_Links *app, Arena *out_arena, i32 override_fon
         if (data.str != 0){
             parsed = def_config_from_text(app, scratch, str8_lit("config.4coder"), data);
         }
-    }
+    } 
     
     if (parsed != 0){
         // Errors
@@ -1491,7 +1491,9 @@ load_config_and_apply(Application_Links *app, Arena *out_arena, i32 override_fon
         // NOTE(allen): Save As Variables
         if (error_text.str == 0){
             // TODO(allen): this always applies to "def_config" need to get "usr_config" working too
-            Variable_Handle config_var = def_fill_var_from_config(app, vars_get_root(), vars_save_string_lit("def_config"), parsed);
+            Variable_Handle config_var = def_fill_var_from_config(app, vars_get_root(),
+                                                                  vars_save_string_lit("def_config"),
+                                                                  parsed);
 			vars_print(app, config_var);
             print_message(app, string_u8_litexpr("\n"));
         }
@@ -1530,6 +1532,9 @@ load_config_and_apply(Application_Links *app, Arena *out_arena, i32 override_fon
     }
     else{
         description.parameters.pt_size = (i32)def_get_config_u64(app, vars_save_string_lit("default_font_size"));
+    }
+    if (description.parameters.pt_size == 0){
+        description.parameters.pt_size = 12;
     }
     
     b32 default_font_hinting = def_get_config_b32(vars_save_string_lit("default_font_hinting"));
