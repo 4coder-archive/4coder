@@ -373,7 +373,7 @@ get_line_start_pos(Application_Links *app, Buffer_ID buffer, i64 line_number){
     return(get_line_side_pos(app, buffer, line_number, Side_Min));
 }
 
-// NOTE(allen): The position returned has the index of the terminating newline character,
+// NOTE(allen): The position returned has the index of the terminating LF.
 // not one past the newline character.
 function Buffer_Cursor
 get_line_end(Application_Links *app, Buffer_ID buffer, i64 line_number){
@@ -384,7 +384,7 @@ get_line_end_pos(Application_Links *app, Buffer_ID buffer, i64 line_number){
     return(get_line_side_pos(app, buffer, line_number, Side_Max));
 }
 
-// NOTE(allen): The range returned does not include the terminating newline character
+// NOTE(allen): The range returned does not include the terminating LF or CRLF
 function Range_Cursor
 get_line_range(Application_Links *app, Buffer_ID buffer, i64 line_number){
     b32 success = false;
@@ -402,7 +402,7 @@ get_line_range(Application_Links *app, Buffer_ID buffer, i64 line_number){
     return(result);
 }
 
-// NOTE(allen): The range returned does not include the terminating newline character
+// NOTE(allen): The range returned does not include the terminating LF or CRLF
 function Range_i64
 get_line_pos_range(Application_Links *app, Buffer_ID buffer, i64 line_number){
     Range_Cursor range = get_line_range(app, buffer, line_number);
@@ -1025,7 +1025,18 @@ push_token_lexeme(Application_Links *app, Arena *arena, Buffer_ID buffer, Token 
 
 function String_Const_u8
 push_buffer_line(Application_Links *app, Arena *arena, Buffer_ID buffer, i64 line_number){
-    return(push_buffer_range(app, arena, buffer, get_line_pos_range(app, buffer, line_number)));
+    // NOTE(allen): 4coder flaw
+    // The system for dealing with CRLF vs LF is too sloppy. There is no way to
+    // avoid returning the CR from this function by adjusting the more
+    // fundamental position getter functions without risking breaking some of
+    // the users of those functions. It seems okay to just chop the CR
+    // off here - but it's clearly sloppy. Oh well - we're in duct tape mode
+    // these days anyways.
+    String_Const_u8 string = push_buffer_range(app, arena, buffer, get_line_pos_range(app, buffer, line_number));
+    for (;string.size > 0 && string.str[string.size - 1] == '\r';){
+        string.size -= 1;
+    }
+    return(string);
 }
 
 function String_Const_u8
