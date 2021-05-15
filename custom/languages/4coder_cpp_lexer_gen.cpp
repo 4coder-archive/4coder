@@ -826,7 +826,7 @@ build_language_model(void){
     sm_select_state(include_pointy);
     sm_case("abcdefghijklmnopqrstuvwxyz"
             "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-            "_. /\\"
+            "!@#$%^&*()-=_+[]{}\\|;:',./<>? "
             "0123456789",
             include_pointy);
     {
@@ -845,7 +845,7 @@ build_language_model(void){
     sm_select_state(include_quotes);
     sm_case("abcdefghijklmnopqrstuvwxyz"
             "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-            "_. /\\"
+            "!@#$%^&*()-=_+[]{}\\|;:',./<>? "
             "0123456789",
             include_quotes);
     {

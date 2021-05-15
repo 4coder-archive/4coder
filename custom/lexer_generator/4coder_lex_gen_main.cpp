@@ -1276,7 +1276,7 @@ sm_op(char *lexeme){
         Assert(lookup.found_match);
         String_Const_u8 name_data = {};
         table_read(&helper_ctx.char_to_name, lookup, &name_data);
-        string_list_push(helper_ctx.arena, &name_list, SCu8(name_data.data, name_data.size));
+        string_list_push(helper_ctx.arena, &name_list, SCu8(name_data.str, name_data.size));
     }
     String_Const_u8 name = string_list_flatten(helper_ctx.arena, name_list);
     return(sm_op(l, name));
