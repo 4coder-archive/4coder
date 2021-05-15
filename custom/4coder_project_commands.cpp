@@ -205,6 +205,7 @@ prj_stringize_project(Application_Links *app, Arena *arena, Variable_Handle proj
     String_ID cursor_at_end_id = vars_save_string_lit("cursor_at_end");
     
     String_ID fkey_command_id = vars_save_string_lit("fkey_command");
+    String_ID fkey_command_override_id = vars_save_string_lit("fkey_command_override");
     
     String8 os_strings[] = { str8_lit("win"), str8_lit("linux"), str8_lit("mac"), };
     local_const i32 os_string_count = ArrayCount(os_strings);
@@ -272,9 +273,7 @@ prj_stringize_project(Application_Links *app, Arena *arena, Variable_Handle proj
                 string_list_push(arena, out, str8_lit("},\n"));
             }
         }
-        string_list_push(arena, out, str8_lit("};\n"));
-        
-        string_list_push(arena, out, str8_lit("\n"));
+        string_list_push(arena, out, str8_lit("};\n\n"));
     }
     
     
@@ -312,9 +311,7 @@ prj_stringize_project(Application_Links *app, Arena *arena, Variable_Handle proj
             string_list_pushf(arena, out, ".cursor_at_end = %s,\n", (cursor_at_end?"true":"false"));
             string_list_push(arena, out, str8_lit("},\n"));
         }
-        string_list_push(arena, out, str8_lit("};\n"));
-        
-        string_list_push(arena, out, str8_lit("\n"));
+        string_list_push(arena, out, str8_lit("};\n\n"));
     }
     
     
@@ -325,11 +322,29 @@ prj_stringize_project(Application_Links *app, Arena *arena, Variable_Handle proj
         for (Vars_Children(child, fkey_commands)){
             String8 key = vars_key_from_var(scratch, child);
             String8 name = vars_string_from_var(scratch, child);
-            string_list_pushf(arena, out, ".%.*s = \"%.*s\",\n", string_expand(key), string_expand(name));
+            string_list_pushf(arena, out, ".%.*s = \"%.*s\",\n",
+                              string_expand(key), string_expand(name));
         }
-        string_list_push(arena, out, str8_lit("};\n"));
-        
-        string_list_push(arena, out, str8_lit("\n"));
+        string_list_push(arena, out, str8_lit("};\n\n"));
+    }
+    
+    
+    // NOTE(allen): FKey Command Override
+    Variable_Handle fkey_commands_overide = vars_read_key(project, fkey_command_override_id);
+    if (!vars_is_nil(fkey_commands_overide)){
+        string_list_push(arena, out, str8_lit("fkey_command_override = {\n"));
+        for (Vars_Children(user_child, fkey_commands_overide)){
+            String8 user_key = vars_key_from_var(scratch, user_child);
+            string_list_pushf(arena, out, ".%.*s = {\n", string_expand(user_key));
+            for (Vars_Children(child, user_child)){
+                String8 key = vars_key_from_var(scratch, child);
+                String8 name = vars_string_from_var(scratch, child);
+                string_list_pushf(arena, out, ".%.*s = \"%.*s\",\n",
+                                  string_expand(key), string_expand(name));
+            }
+            string_list_pushf(arena, out, "},\n");
+        }
+        string_list_push(arena, out, str8_lit("};\n\n"));
     }
 }
 
@@ -733,14 +748,32 @@ prj_exec_command_name(Application_Links *app, String8 cmd_name){
 
 function void
 prj_exec_command_fkey_index(Application_Links *app, i32 fkey_index){
-    // TODO(allen): ideally if one fkey_command is missing this index the fallback
-    // can be continued.
-    Variable_Handle fkeys = def_get_config_var(vars_save_string_lit("fkey_command"));
-    
+    // setup fkey string
     Scratch_Block scratch(app);
     String8 fkey_index_str = push_stringf(scratch, "F%d", fkey_index + 1);
     String_ID fkey_index_id = vars_save_string(fkey_index_str);
-    Variable_Handle cmd_name_var = vars_read_key(fkeys, fkey_index_id);
+    
+    // get command variable
+    Variable_Handle cmd_name_var = vars_get_nil();
+    
+    // try user override
+    {
+        Variable_Handle fkey_override = 
+            def_get_config_var(vars_save_string_lit("fkey_command_override"));
+        if (!vars_is_nil(fkey_override)){
+            String_Const_u8 name = def_get_config_string(scratch, vars_save_string_lit("user_name"));
+            String_ID user_name_id = vars_save_string(name);
+            Variable_Handle user_var = vars_read_key(fkey_override, user_name_id);
+            cmd_name_var = vars_read_key(user_var, fkey_index_id);
+        }
+    }
+    
+    // try defaults
+    if (vars_is_nil(cmd_name_var)){
+        Variable_Handle fkeys = def_get_config_var(vars_save_string_lit("fkey_command"));
+        cmd_name_var = vars_read_key(fkeys, fkey_index_id);
+    }
+    
     String8 cmd_name = vars_string_from_var(scratch, cmd_name_var);
     prj_exec_command_name(app, cmd_name);
 }
