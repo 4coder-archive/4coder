@@ -155,14 +155,16 @@ CUSTOM_COMMAND_SIG(backspace_alpha_numeric_boundary)
 CUSTOM_DOC("Delete characters between the cursor position and the first alphanumeric boundary to the left.")
 {
     Scratch_Block scratch(app);
-    current_view_boundary_delete(app, Scan_Backward, push_boundary_list(scratch, boundary_alpha_numeric));
+    current_view_boundary_delete(app, Scan_Backward,
+                                 push_boundary_list(scratch, boundary_alpha_numeric_unicode));
 }
 
 CUSTOM_COMMAND_SIG(delete_alpha_numeric_boundary)
 CUSTOM_DOC("Delete characters between the cursor position and the first alphanumeric boundary to the right.")
 {
     Scratch_Block scratch(app);
-    current_view_boundary_delete(app, Scan_Forward, push_boundary_list(scratch, boundary_alpha_numeric));
+    current_view_boundary_delete(app, Scan_Forward,
+                                 push_boundary_list(scratch, boundary_alpha_numeric_unicode));
 }
 
 function void

@@ -565,7 +565,7 @@ boundary_alpha_numeric(Application_Links *app, Buffer_ID buffer, Side side, Scan
 
 function i64
 boundary_alpha_numeric_unicode(Application_Links *app, Buffer_ID buffer, Side side, Scan_Direction direction, i64 pos){
-    return(boundary_predicate(app, buffer, side, direction, pos, &character_predicate_alpha_numeric_underscore_utf8));
+    return(boundary_predicate(app, buffer, side, direction, pos, &character_predicate_alpha_numeric_utf8));
 }
 
 function i64

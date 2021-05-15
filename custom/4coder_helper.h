@@ -109,6 +109,13 @@ global Character_Predicate character_predicate_utf8_byte = { {
         255, 255, 255, 255, 255, 255, 255, 255, 
     } };
 
+global Character_Predicate character_predicate_alpha_numeric_utf8 = { {
+        0,   0,   0,   0,   0,   0, 255,   3, 
+        254, 255, 255,   7, 254, 255, 255,   7, 
+        255, 255, 255, 255, 255, 255, 255, 255, 
+        255, 255, 255, 255, 255, 255, 255, 255, 
+    } };
+
 global Character_Predicate character_predicate_alpha_numeric_underscore_utf8 = { {
         0,   0,   0,   0,   0,   0, 255,   3, 
         254, 255, 255, 135, 254, 255, 255,   7, 
