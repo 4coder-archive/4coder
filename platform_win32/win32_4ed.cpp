@@ -60,13 +60,8 @@
 
 //////////////////////////////
 
-enum{
-    ErrorString_UseLog = 0,
-    ErrorString_UseErrorBox = 1,
-};
-
-internal void
-win32_output_error_string(Arena *scratch, i32 error_string_type);
+internal String_Const_u8 win32_get_error_string(void);
+internal void win32_output_error_string(String_Const_u8 string);
 
 //////////////////////////////
 
@@ -219,17 +214,23 @@ system_error_box(char *msg){
 
 ////////////////////////////////
 
-internal void
-win32_output_error_string(Arena *scratch, b32 use_error_box){
+internal String_Const_u8
+win32_get_error_string(void){
+    String_Const_u8 result = {};
     DWORD error = GetLastError();
-    
     char *str = 0;
     char *str_ptr = (char*)&str;
-    if (FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM, 0, error, 0, str_ptr, 0, 0)){
-        if (use_error_box){
-            system_error_box(str);
-        }
+    if (FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM,
+                       0, error, 0, str_ptr, 0, 0)){
+        result.str = (u8*)str;
+        result.size = strlen(str);
     }
+    return(result);
+}
+
+internal void
+win32_output_error_string(String_Const_u8 error_string){
+    system_error_box((char*)error_string.str);
 }
 
 ////////////////////////////////
@@ -414,7 +415,8 @@ internal void
 win32_post_clipboard(Arena *scratch, char *text, i32 len){
     if (OpenClipboard(win32vars.window_handle)){
         if (!EmptyClipboard()){
-            win32_output_error_string(scratch, ErrorString_UseLog);
+            String_Const_u8 error_string = win32_get_error_string();
+            win32_output_error_string(error_string);
         }
         HANDLE memory_handle = GlobalAlloc(GMEM_MOVEABLE, len  + 1);
         if (memory_handle){
@@ -1827,8 +1829,8 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     
     // NOTE(allen): Misc Init
     if (!AddClipboardFormatListener(win32vars.window_handle)){
-        Scratch_Block scratch(win32vars.tctx);
-        win32_output_error_string(scratch, ErrorString_UseLog);
+        String_Const_u8 error_string = win32_get_error_string();
+        win32_output_error_string(error_string);
     }
     
     win32vars.clip_wakeup_timer = system_wake_up_timer_create();
