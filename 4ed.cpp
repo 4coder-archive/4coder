@@ -53,6 +53,8 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
                                 case 'f': action = CLAct_FontSize; break;
                                 case 'h': action = CLAct_FontUseHinting; --i; break;
                                 case 'U': action = CLAct_UserDirectory; break;
+                                
+                                //case 'L': enables log, parsed before this is called (because I'm a dumbass)
                             }
                         }
                         else if (arg[0] != 0){

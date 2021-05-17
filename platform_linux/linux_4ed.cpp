@@ -117,6 +117,12 @@ fprintf(stderr, "\n** ASSERTION FAILURE: %s:%d: %s\n\n", __FILE__, __LINE__, #m)
 #define LINUX_FN_DEBUG(...)
 #endif
 
+////////////////////////////////
+
+global b32 log_os_enabled = false;
+#define log_os(...) \
+Stmnt( if (log_os_enabled){ fprintf(stdout, __VA_ARGS__); fflush(stdout); } )
+
 ////////////////////////////
 
 struct Linux_Input_Chunk_Transient {
@@ -213,6 +219,8 @@ struct Linux_Vars {
     Atom atom__NET_WM_WINDOW_TYPE_NORMAL;
     Atom atom__NET_WM_PID;
     Atom atom_WM_DELETE_WINDOW;
+    
+    Log_Function *log_string;
 };
 
 global Linux_Vars linuxvars;
@@ -1737,7 +1745,16 @@ linux_epoll_process(struct epoll_event* events, int num_events) {
 
 int
 main(int argc, char **argv){
+    // NOTE(allen): fucking bullshit. someone get my shit togeth :(er
     
+    for (i32 i = 0; i < argc; i += 1){
+        String_Const_u8 arg = SCu8(argv[i]);
+        if (string_match(arg, str8_lit("-L"))){
+            log_os_enabled = true;
+        }
+    }
+    
+    // NOTE(allen): All of This thing
     pthread_mutexattr_t attr;
     pthread_mutexattr_init(&attr);
     pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
@@ -1808,8 +1825,8 @@ main(int argc, char **argv){
     // NOTE(allen): send system vtable to core
     app.load_vtables(&system_vtable, &font_vtable, &graphics_vtable);
     // get_logger calls log_init which is needed.
-    app.get_logger();
-    //linuxvars.log_string = app.get_logger();
+    //app.get_logger();
+    linuxvars.log_string = app.get_logger();
     
     // NOTE(allen): init & command line parameters
     Plat_Settings plat_settings = {};

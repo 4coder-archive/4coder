@@ -58,6 +58,12 @@
 #include "win32_utf8.h"
 #include "win32_gl.h"
 
+////////////////////////////////
+
+global b32 log_os_enabled = false;
+#define log_os(...) \
+Stmnt( if (log_os_enabled){ fprintf(stdout, __VA_ARGS__); fflush(stdout); } )
+
 //////////////////////////////
 
 internal String_Const_u8 win32_get_error_string(void);
@@ -182,7 +188,7 @@ struct Win32_Vars{
     Audio_Mix_Sources_Function *volatile audio_mix_sources;
     Audio_Mix_Destination_Function *volatile audio_mix_destination;
     
-    f64 count_per_usecond;
+    f64 usecond_per_count;
     b32 first;
     i32 running_cli;
     
@@ -468,7 +474,7 @@ system_post_clipboard_sig(){
         win32vars.clip_post.size = str.size;
     }
     else{
-        //LOGF("Failed to allocate buffer for clipboard post (%d)\n", (i32)str.size + 1);
+        log_os("Failed to allocate buffer for clipboard post (%d)\n", (i32)str.size + 1);
     }
 }
 
@@ -877,7 +883,7 @@ system_now_time_sig(){
     u64 result = 0;
     LARGE_INTEGER t;
     if (QueryPerformanceCounter(&t)){
-        result = (u64)(t.QuadPart/win32vars.count_per_usecond);
+        result = (u64)(t.QuadPart*win32vars.usecond_per_count);
     }
     return(result);
 }
@@ -1444,9 +1450,12 @@ win32_gl_create_window(HWND *wnd_out, HGLRC *context_out, DWORD style, RECT rect
     local_persist b32 register_success = true;
     local_persist b32 first_call = true;
     if (first_call){
+        log_os(" GL bootstrapping...\n");
+        
         first_call = false;
         
         // NOTE(allen): Create the GL bootstrap window
+        log_os(" registering bootstrap class...\n");
         WNDCLASSW wglclass = {};
         wglclass.lpfnWndProc = DefWindowProcW;
         wglclass.hInstance = this_instance;
@@ -1456,6 +1465,7 @@ win32_gl_create_window(HWND *wnd_out, HGLRC *context_out, DWORD style, RECT rect
             goto fail_register;
         }
         
+        log_os(" creating bootstrap window...\n");
         HWND wglwindow = CreateWindowW(wglclass.lpszClassName, L"", 0, 0, 0, 0, 0,
                                        0, 0, this_instance, 0);
         if (wglwindow == 0){
@@ -1464,6 +1474,8 @@ win32_gl_create_window(HWND *wnd_out, HGLRC *context_out, DWORD style, RECT rect
         }
         
         // NOTE(allen): Create the GL bootstrap context
+        log_os(" setting bootstrap pixel format...\n");
+        
         HDC wgldc = GetDC(wglwindow);
         
         PIXELFORMATDESCRIPTOR format = {};
@@ -1481,18 +1493,22 @@ win32_gl_create_window(HWND *wnd_out, HGLRC *context_out, DWORD style, RECT rect
             goto fail_register;
         }
         
+        log_os(" creating bootstrap GL context...\n");
         HGLRC wglcontext = wglCreateContext(wgldc);
         if (wglcontext == 0){
             register_success = false;
             goto fail_register;
         }
         
+        log_os(" making bootstrap GL context current...\n");
         if (!wglMakeCurrent(wgldc, wglcontext)){
             register_success = false;
             goto fail_register;
         }
         
         // NOTE(allen): Load wgl extensions
+        log_os(" loading wgl extensions...\n");
+        
 #define LoadWGL(f,l) Stmnt((f) = (f##_Function*)wglGetProcAddress(#f); \
 (l) = (l) && win32_wgl_good((Void_Func*)(f));)
         
@@ -1506,6 +1522,7 @@ win32_gl_create_window(HWND *wnd_out, HGLRC *context_out, DWORD style, RECT rect
             goto fail_register;
         }
         
+        log_os(" checking wgl extensions...\n");
         char *extensions_c = wglGetExtensionsStringEXT();
         String_Const_u8 extensions = SCu8((u8*)extensions_c);
         
@@ -1530,6 +1547,8 @@ win32_gl_create_window(HWND *wnd_out, HGLRC *context_out, DWORD style, RECT rect
         }
         
         // NOTE(allen): Load gl functions
+        log_os(" loading core GL functions...\n");
+        
 #define GL_FUNC(f,R,P) LoadWGL(f,load_success);
 #include "opengl/4ed_opengl_funcs.h"
         
@@ -1539,11 +1558,15 @@ win32_gl_create_window(HWND *wnd_out, HGLRC *context_out, DWORD style, RECT rect
         }
         
         // NOTE(allen): Cleanup the GL bootstrap resources
+        log_os(" cleaning up boostrap resources...\n");
+        
         ReleaseDC(wglwindow, wgldc);
         DestroyWindow(wglwindow);
         wglDeleteContext(wglcontext);
         
         // NOTE(allen): Register the graphics window class
+        log_os(" registering graphics class...\n");
+        
         WNDCLASSW wndclass = {};
         wndclass.style = CS_HREDRAW|CS_VREDRAW|CS_DBLCLKS;
         wndclass.lpfnWndProc = win32_proc;
@@ -1560,6 +1583,8 @@ win32_gl_create_window(HWND *wnd_out, HGLRC *context_out, DWORD style, RECT rect
     b32 result = false;
     if (register_success){
         // NOTE(allen): Create the graphics window
+        log_os(" creating graphics window...\n");
+        
         HWND wnd = CreateWindowExW(0, L"GRAPHICS-WINDOW-NAME", L"GRAPHICS", style,
                                    CW_USEDEFAULT, CW_USEDEFAULT, rect.right - rect.left, rect.bottom - rect.top,
                                    0, 0, this_instance, 0);
@@ -1567,6 +1592,8 @@ win32_gl_create_window(HWND *wnd_out, HGLRC *context_out, DWORD style, RECT rect
         *wnd_out = 0;
         *context_out = 0;
         if (wnd != 0){
+            log_os(" setting graphics pixel format...\n");
+            
             HDC dc = GetDC(wnd);
             
             PIXELFORMATDESCRIPTOR format = {};
@@ -1595,6 +1622,8 @@ win32_gl_create_window(HWND *wnd_out, HGLRC *context_out, DWORD style, RECT rect
                 goto fail_window_init;
             }
             
+            log_os(" setting graphics attributes...\n");
+            
             i32 context_attrib_list[] = {
                 /*0*/WGL_CONTEXT_MAJOR_VERSION_ARB, 3,
                 /*2*/WGL_CONTEXT_MINOR_VERSION_ARB, 2,
@@ -1607,13 +1636,18 @@ win32_gl_create_window(HWND *wnd_out, HGLRC *context_out, DWORD style, RECT rect
                 /*8*/0
             };
             
+            log_os(" creating graphics GL context...\n");
             HGLRC context = wglCreateContextAttribsARB(dc, 0, context_attrib_list);
             if (context == 0){
                 goto fail_window_init;
             }
             
+            log_os(" making graphics GL context current...\n");
             wglMakeCurrent(dc, context);
+            
+            
             if (wglSwapIntervalEXT != 0){
+                log_os(" setting swap interval...\n");
                 wglSwapIntervalEXT(1);
             }
             *wnd_out = wnd;
@@ -1643,6 +1677,21 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     i32 argc = __argc;
     char **argv = __argv;
     
+    // NOTE(allen): someone get my shit togeth :(er for me
+    
+    for (i32 i = 0; i < argc; i += 1){
+        String_Const_u8 arg = SCu8(argv[i]);
+        printf("arg[%d]: %.*s\n", i, string_expand(arg));
+        if (string_match(arg, str8_lit("-L"))){
+            log_os_enabled = true;
+        }
+    }
+    
+    log_os("Logging startup...\n");
+    
+    log_os("Initializing thread context...\n");
+    
+    // NOTE(allen): This thing
     InitializeCriticalSection(&memory_tracker_mutex);
     
     // NOTE(allen): context setup
@@ -1651,6 +1700,8 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     
     block_zero_struct(&win32vars);
     win32vars.tctx = &_tctx;
+    
+    log_os("Filling API v-tables...\n");
     
     API_VTable_system system_vtable = {};
     system_api_fill_vtable(&system_vtable);
@@ -1661,6 +1712,8 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     API_VTable_font font_vtable = {};
     font_api_fill_vtable(&font_vtable);
     
+    log_os("Setting up memory management...\n");
+    
     // NOTE(allen): memory
     win32vars.frame_arena = make_arena_system();
     // TODO(allen): *arena;
@@ -1669,11 +1722,15 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     win32vars.cursor_show = MouseCursorShow_Always;
     win32vars.prev_cursor_show = MouseCursorShow_Always;
     
+    log_os("Setting up threading primitives...\n");
+    
     dll_init_sentinel(&win32vars.free_win32_objects);
     dll_init_sentinel(&win32vars.timer_objects);
     
     InitializeCriticalSection(&win32vars.thread_launch_mutex);
     InitializeConditionVariable(&win32vars.thread_launch_cv);
+    
+    log_os("Setting up DPI awareness...\n");
     
     SetProcessDPIAware();
     
@@ -1684,9 +1741,12 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         i32 max_dpi = max(x_dpi, y_dpi);
         win32vars.screen_scale_factor = ((f32)max_dpi)/96.f;
         ReleaseDC(0, dc);
+        log_os(" detected dpi %f\n", win32vars.screen_scale_factor);
     }
     
     // NOTE(allen): load core
+    log_os("Loading 4ed core...\n");
+    
     System_Library core_library = {};
     App_Functions app = {};
     {
@@ -1696,7 +1756,11 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         List_String_Const_u8 search_list = {};
         def_search_list_add_system_path(scratch, &search_list, SystemPath_Binary);
         
-        String_Const_u8 core_path = def_search_get_full_path(scratch, &search_list, SCu8("4ed_app.dll"));
+        String_Const_u8 core_path =
+            def_search_get_full_path(scratch, &search_list, SCu8("4ed_app.dll"));
+        
+        log_os(" path to core: '%.*s'\n", string_expand(core_path));
+        
         if (system_load_library(scratch, core_path, &core_library)){
             get_funcs = (App_Get_Functions*)system_get_proc(core_library, "app_get_functions");
             if (get_funcs != 0){
@@ -1713,11 +1777,17 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         }
     }
     
+    log_os(" core loaded\n");
+    
     // NOTE(allen): send system vtable to core
+    log_os("Linking vtables...\n");
+    
     app.load_vtables(&system_vtable, &font_vtable, &graphics_vtable);
     win32vars.log_string = app.get_logger();
     
     // NOTE(allen): init & command line parameters
+    log_os("Parsing command line...\n");
+    
     Plat_Settings plat_settings = {};
     void *base_ptr = 0;
     {
@@ -1741,11 +1811,15 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     }
     
     // NOTE(allen): setup user directory override
+    log_os("User directory override: '%s'\n", plat_settings.user_directory);
+    
     if (plat_settings.user_directory != 0){
         w32_override_user_directory = SCu8((u8*)plat_settings.user_directory);
     }
     
     // NOTE(allen): load custom layer
+    log_os("Loading custom layer...\n");
+    
     System_Library custom_library = {};
     Custom_API custom = {};
     {
@@ -1760,6 +1834,19 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         def_search_list_add_system_path(scratch, &search_list, SystemPath_UserDirectory);
         def_search_list_add_system_path(scratch, &search_list, SystemPath_Binary);
         
+        if (log_os_enabled){
+            log_os(" search list (paths):");
+            for (Node_String_Const_u8 *node = search_list.first;
+                 node != 0;
+                 node = node->next){
+                log_os("'%.*s'", string_expand(node->string));
+                if (node->next != 0){
+                    log_os(", ");
+                }
+            }
+            log_os("\n");
+        }
+        
         String_Const_u8 custom_file_names[2] = {};
         i32 custom_file_count = 1;
         if (plat_settings.custom_dll != 0){
@@ -1772,6 +1859,10 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         else{
             custom_file_names[0] = default_file_name;
         }
+        
+        log_os(" search list (file names): '%.*s', '%.*s'\n",
+               string_expand(custom_file_names[0]), string_expand(custom_file_names[1]));
+        
         String_Const_u8 custom_file_name = {};
         for (i32 i = 0; i < custom_file_count; i += 1){
             custom_file_name = def_search_get_full_path(scratch, &search_list, custom_file_names[i]);
@@ -1779,6 +1870,9 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
                 break;
             }
         }
+        
+        log_os(" trying to load: '%.*s'\n", string_expand(custom_file_name));
+        
         b32 has_library = false;
         if (custom_file_name.size > 0){
             if (system_load_library(scratch, custom_file_name, &custom_library)){
@@ -1799,7 +1893,12 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         }
     }
     
+    log_os(" loaded successfully\n");
+    
     // NOTE(allen): Window Init
+    log_os("Initializing graphical window...\n");
+    
+    log_os(" getting initial settings...\n");
     RECT window_rect = {};
     if (plat_settings.set_window_size){
         window_rect.right = plat_settings.window_w;
@@ -1810,29 +1909,36 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         window_rect.bottom = 600;
     }
     AdjustWindowRect(&window_rect, WS_OVERLAPPEDWINDOW, false);
-    
     i32 window_style = WS_OVERLAPPEDWINDOW;
     if (!plat_settings.fullscreen_window && plat_settings.maximize_window){
         window_style |= WS_MAXIMIZE;
     }
+    log_os(" windowed dimensions: %d, %d\n"
+           " initially maximized: %d",
+           window_rect.right - window_rect.left,
+           window_rect.bottom - window_rect.top,
+           ((window_style & WS_MAXIMIZE) != 0));
     
     HGLRC window_opengl_context = 0;
     if (!win32_gl_create_window(&win32vars.window_handle, &window_opengl_context, window_style, window_rect)){
         exit(1);
     }
     
+    log_os(" window created successfully\n");
+    
     GetClientRect(win32vars.window_handle, &window_rect);
     win32_resize(window_rect.right - window_rect.left, window_rect.bottom - window_rect.top);
     
     // NOTE(allen): Audio Init
+    log_os("Initializing audio...\n");
     win32vars.audio_thread_id = win32_audio_init();
     
     // NOTE(allen): Misc Init
+    log_os("Initializing clipboard listener...\n");
     if (!AddClipboardFormatListener(win32vars.window_handle)){
         String_Const_u8 error_string = win32_get_error_string();
         win32_output_error_string(error_string);
     }
-    
     win32vars.clip_wakeup_timer = system_wake_up_timer_create();
     win32vars.clipboard_sequence = GetClipboardSequenceNumber();
     if (win32vars.clipboard_sequence == 0){
@@ -1841,32 +1947,45 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         win32vars.clipboard_sequence = GetClipboardSequenceNumber();
         win32vars.next_clipboard_is_self = 0;
         if (win32vars.clipboard_sequence == 0){
-            OutputDebugStringA("Failure while initializing clipboard\n");
+            log_os(" failure\n");
+        }
+        else{
+            log_os(" got first sequence number\n");
         }
     }
+    else{
+        log_os(" no initial sequence number\n");
+    }
     
+    log_os("Setting up keyboard layout...\n");
     win32vars.kl_universal = LoadKeyboardLayoutW(L"00000409", 0);
     win32_keycode_init();
     
+    log_os("Loading cursors...\n");
     win32vars.cursor_ibeam = LoadCursor(NULL, IDC_IBEAM);
     win32vars.cursor_arrow = LoadCursor(NULL, IDC_ARROW);
     win32vars.cursor_leftright = LoadCursor(NULL, IDC_SIZEWE);
     win32vars.cursor_updown = LoadCursor(NULL, IDC_SIZENS);
     
+    log_os("Initializing performance counter...\n");
     LARGE_INTEGER f;
     if (QueryPerformanceFrequency(&f)){
-        win32vars.count_per_usecond = (f32)f.QuadPart / 1000000.f;
+        win32vars.usecond_per_count = 1000000.f/(f32)f.QuadPart;
     }
     else{
         // NOTE(allen): Just guess.
-        win32vars.count_per_usecond = 1.f;
+        win32vars.usecond_per_count = 1.f;
+        log_os(" load failed, guessing usecond_per_count = 1\n");
     }
-    Assert(win32vars.count_per_usecond > 0.f);
+    if (win32vars.usecond_per_count <= 0.f){
+        win32vars.usecond_per_count = 1.f;
+    }
     
     //
     // App init
     //
     
+    log_os("Initializing 4ed core...\n");
     {
         Scratch_Block scratch(win32vars.tctx);
         String_Const_u8 curdir = system_get_path(scratch, SystemPath_CurrentDirectory);
@@ -1877,6 +1996,8 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     //
     // Main loop
     //
+    
+    log_os("Starting main loop...\n");
     
     b32 keep_running = true;
     win32vars.first = true;

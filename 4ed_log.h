@@ -17,6 +17,7 @@ struct Log{
     Arena arena;
     List_String_Const_u8 list;
     volatile i32 disabled_thread_id;
+    b32 stdout_log_enabled;
 };
 
 #endif
