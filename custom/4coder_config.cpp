@@ -1594,11 +1594,13 @@ load_folder_of_themes_into_live_set(Application_Links *app, String_Const_u8 path
         File_Info *info = *ptr;
         if (!HasFlag(info->attributes.flags, FileAttribute_IsDirectory)){
             String_Const_u8 name = info->file_name;
-            Temp_Memory_Block temp(scratch);
-            String_Const_u8 full_name = push_u8_stringf(scratch, "%.*s/%.*s",
-                                                        string_expand(path),
-                                                        string_expand(name));
-            load_theme_file_into_live_set(app, (char*)full_name.str);
+            if (string_match(string_postfix(name, 7), str8_lit(".4coder"))){
+                Temp_Memory_Block temp(scratch);
+                String_Const_u8 full_name = push_u8_stringf(scratch, "%.*s/%.*s",
+                                                            string_expand(path),
+                                                            string_expand(name));
+                load_theme_file_into_live_set(app, (char*)full_name.str);
+            }
         }
     }
 }
