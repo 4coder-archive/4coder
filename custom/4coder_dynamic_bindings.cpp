@@ -24,7 +24,21 @@ dynamic_binding_load_from_file(Application_Links *app, Mapping *mapping, String_
     Scratch_Block scratch(app);
     
     String_Const_u8 filename_copied = push_string_copy(scratch, filename);
-    FILE *file = def_search_normal_fopen(scratch, (char*)filename_copied.str, "rb");
+    String8List search_list = {};
+    def_search_normal_load_list(scratch, &search_list);
+    String_Const_u8 full_path = def_search_get_full_path(scratch, &search_list, filename_copied);
+    
+    {
+        String8 message = push_stringf(scratch, "loading bindings: %.*s\n",
+                                       string_expand(full_path));
+        print_message(app, message);
+    }
+    
+    FILE *file = 0;
+    if (full_path.size > 0){
+        file = fopen((char*)full_path.str, "rb");
+    }
+    
     if (file != 0){
         String_Const_u8 data = dump_file_handle(scratch, file);
         Config *parsed = def_config_from_text(app, scratch, filename, data);
