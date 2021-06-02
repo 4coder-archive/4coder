@@ -54,6 +54,7 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
                                 case 'h': action = CLAct_FontUseHinting; --i; break;
                                 case 'U': action = CLAct_UserDirectory; break;
                                 
+                                case 'L': action = CLAct_Nothing; break;
                                 //case 'L': enables log, parsed before this is called (because I'm a dumbass)
                             }
                         }
