@@ -526,8 +526,8 @@ prj_setup_scripts(Application_Links *app, Prj_Setup_Script_Flags flags){
         status = prj_file_is_setup(app, script_path, string_u8_litexpr("build"));
         needs_to_do_work =
             !status.project_exists ||
-            (do_bat_script && !status.bat_exists) ||
-            (do_sh_script && !status.sh_exists);
+        (do_bat_script && !status.bat_exists) ||
+        (do_sh_script && !status.sh_exists);
     }
     else{
         needs_to_do_work = true;
@@ -963,7 +963,7 @@ CUSTOM_DOC("Looks for a project.4coder file in the current directory and tries t
     
     // NOTE(allen): Set Window Title
     Variable_Handle proj_name_var = vars_read_key(prj_var, vars_save_string_lit("project_name"));
-    String_ID proj_name_id = vars_key_id_from_var(proj_name_var);
+    String_ID proj_name_id = vars_string_id_from_var(proj_name_var);
     if (proj_name_id != 0){
         String8 proj_name = vars_read_string(scratch, proj_name_id);
         String8 title = push_u8_stringf(scratch, "4coder project: %.*s", string_expand(proj_name));

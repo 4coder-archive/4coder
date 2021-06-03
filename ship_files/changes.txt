@@ -1,4 +1,20 @@
 
+4.1.8
+ + On command line "-U <path>" sets the user directory
+ + On command line "-L" "> log.txt" to get a startup log
+ + The 4coder_fleury layer is now bundled with 4coder; run with '4ed -U 4coder_fleury'
+ + New commands 'project_command_F1' ... 'project_command_F16' can be directly bound
+   in key bindings.
+ + In a project "fkey_command_override" can contain labeled sets ".name = { ... }"
+   which override the fkey commands for a particular user;
+   "user_name" from config.4coder is used to decide which override set to apply
+ + Fix: indent bug inside parantheses
+ + Fix: window title after project loading works again
+ + Fix: parsing the parameter of #include
+ + Fix: handle spaces in buildsuper build paths
+ + Fix: make backspace alphanumeric boundary work on UTF-8
+ + Fix: push_buffer_line now cuts out an extra carriage return at the end
+
 4.1.7
  + Core string hash features "save_string" "read_string"
  + Added lookup acceleration to code index data
