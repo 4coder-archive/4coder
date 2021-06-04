@@ -16,9 +16,10 @@ pushd ..
 SET dir=%CD%\distributions
 
 butler push %flags% %dir%\demo_x64\4coder-%fv%-demo-win-x64.zip    4coder/4coder:win-x64-demo
-butler push %flags% %dir%\demo_x86\4coder-%fv%-demo-win-x86.zip    4coder/4coder:win-x86-demo
 butler push %flags% %dir%\super_x64\4coder-%fv%-super-win-x64.zip  4coder/4coder:win-x64
-butler push %flags% %dir%\super_x86\4coder-%fv%-super-win-x86.zip  4coder/4coder:win-x86
+
+REM butler push %flags% %dir%\demo_x86\4coder-%fv%-demo-win-x86.zip    4coder/4coder:win-x86-demo
+REM butler push %flags% %dir%\super_x86\4coder-%fv%-super-win-x86.zip  4coder/4coder:win-x86
 
 popd
 
