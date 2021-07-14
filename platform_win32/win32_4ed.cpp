@@ -378,15 +378,6 @@ win32_read_clipboard_contents(Thread_Context *tctx, Arena *arena){
     
     String_Const_u8 result = {};
     
-#if 0    
-    b32 has_text = false;
-    b32 has_unicode = IsClipboardFormatAvailable(CF_UNICODETEXT);
-    if (!has_unicode){
-        has_text = IsClipboardFormatAvailable(CF_TEXT);
-    }
-    b32 can_read = has_unicode || has_text;
-#endif
-    
     if (OpenClipboard(win32vars.window_handle)){
         b32 got_result = false;
         if (!got_result){
@@ -1942,7 +1933,9 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         win32_output_error_string(error_string);
     }
     win32vars.clip_wakeup_timer = system_wake_up_timer_create();
-    win32vars.clipboard_sequence = GetClipboardSequenceNumber();
+    win32vars.clipboard_sequence = 0;
+    win32vars.next_clipboard_is_self = 0;
+#if 0
     if (win32vars.clipboard_sequence == 0){
         Scratch_Block scratch(win32vars.tctx);
         win32_post_clipboard(scratch, "", 0);
@@ -1958,6 +1951,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     else{
         log_os(" no initial sequence number\n");
     }
+#endif
     
     log_os("Setting up keyboard layout...\n");
     win32vars.kl_universal = LoadKeyboardLayoutW(L"00000409", 0);
