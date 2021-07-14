@@ -378,41 +378,44 @@ win32_read_clipboard_contents(Thread_Context *tctx, Arena *arena){
     
     String_Const_u8 result = {};
     
+#if 0    
     b32 has_text = false;
     b32 has_unicode = IsClipboardFormatAvailable(CF_UNICODETEXT);
     if (!has_unicode){
         has_text = IsClipboardFormatAvailable(CF_TEXT);
     }
     b32 can_read = has_unicode || has_text;
+#endif
     
-    if (can_read){
-        if (OpenClipboard(win32vars.window_handle)){
-            if (has_unicode){
-                HANDLE clip_data = GetClipboardData(CF_UNICODETEXT);
-                if (clip_data != 0){
-                    u16 *clip_16_ptr = (u16*)GlobalLock(clip_data);
-                    if (clip_16_ptr != 0){
-                        String_Const_u16 clip_16 = SCu16(clip_16_ptr);
-                        result = string_u8_from_string_u16(arena, clip_16, StringFill_NullTerminate).string;
-                    }
+    if (OpenClipboard(win32vars.window_handle)){
+        b32 got_result = false;
+        if (!got_result){
+            HANDLE clip_data = GetClipboardData(CF_UNICODETEXT);
+            if (clip_data != 0){
+                u16 *clip_16_ptr = (u16*)GlobalLock(clip_data);
+                if (clip_16_ptr != 0){
+                    String_Const_u16 clip_16 = SCu16(clip_16_ptr);
+                    got_result = true;
+                    result = string_u8_from_string_u16(arena, clip_16, StringFill_NullTerminate).string;
                 }
                 GlobalUnlock(clip_data);
             }
-            else{
-                HANDLE clip_data = GetClipboardData(CF_TEXT);
-                if (clip_data != 0){
-                    char *clip_ascii_ptr = (char*)GlobalLock(clip_data);
-                    if (clip_ascii_ptr != 0){
-                        String_Const_char clip_ascii = SCchar(clip_ascii_ptr);
-                        result = string_u8_from_string_char(arena, clip_ascii, StringFill_NullTerminate).string;
-                    }
-                }
-                GlobalUnlock(clip_data);
-            }
-            
-            CloseClipboard();
         }
+        if (!got_result){
+            HANDLE clip_data = GetClipboardData(CF_TEXT);
+            if (clip_data != 0){
+                char *clip_ascii_ptr = (char*)GlobalLock(clip_data);
+                if (clip_ascii_ptr != 0){
+                    String_Const_char clip_ascii = SCchar(clip_ascii_ptr);
+                    got_result = true;
+                    result = string_u8_from_string_char(arena, clip_ascii, StringFill_NullTerminate).string;
+                }
+                GlobalUnlock(clip_data);
+            }
+        }
+        CloseClipboard();
     }
+    
     
     return(result);
 }

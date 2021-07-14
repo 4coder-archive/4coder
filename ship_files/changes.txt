@@ -1,5 +1,8 @@
 
 4.1.8
+ + Fix: unreliable clipboard reading on windows
+
+4.1.8
  + On command line "-U <path>" sets the user directory
  + On command line "-L" "> log.txt" to get a startup log
  + The 4coder_fleury layer is now bundled with 4coder; run with '4ed -U 4coder_fleury'
