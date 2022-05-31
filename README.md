@@ -10,7 +10,7 @@ Also thanks to all those who supported the project, financially and/or through a
 
 As of May 31st 2022, I am freezing this codebase and open sourcing it.
 
-I *DO NOT* recommend learning from this codebase, especially not with an uncritical eye. It may be a useful reference for certain algorithms and architectural ideas, and it certainly contains some cautionary tails. But if you are a beginner, I encourage you to aim for more than emulating the style and structure of this codebase.
+I *DO NOT* recommend learning from this codebase, especially not with an uncritical eye. It may be a useful reference for certain algorithms and architectural ideas, and it certainly contains some cautionary tales. But if you are a beginner, I encourage you to aim for more than emulating the style and structure of this codebase.
 
 I will not be taking pull requests, or any other form of contribution in this repository. Since I am no longer maintaining this codebase, it is my intention that users who rely on 4coder will have the option to fork the codebase, fix their issues, or carry what I started in new directions according to their own vision if they would like.
 
